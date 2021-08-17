@@ -1,0 +1,5 @@
+name "deth"
+description "Example of using metaprgramming for creating smart contracts interface from abi"
+authors "tynuk"
+copyright "Copyright © 2021, tynuk"
+license "MIT"
