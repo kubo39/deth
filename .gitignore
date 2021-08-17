@@ -1,0 +1,15 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/deth
+deth.so
+deth.dylib
+deth.dll
+deth.a
+deth.lib
+deth-test-*
+*.exe
+*.o
+*.obj
+*.lst
