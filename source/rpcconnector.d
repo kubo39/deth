@@ -1,6 +1,18 @@
 module rpcconnector;
 
+import std:Nullable;
+import std.json: JSONValue;
 import rpc.protocol.json;
+
+struct Transaction {
+    string from;
+    Nullable!string to;
+    Nullable!ulong gas;
+    Nullable!ulong gasPrice;
+    Nullable!ulong value;
+    string data = "0x";
+    Nullable!ulong nonce;
+}
 
 interface IEthRPC {
     string web3_clientVersion();
@@ -9,9 +21,14 @@ interface IEthRPC {
     bool net_listening();
     int net_peerCount();
     string  eth_protocolVersion();
-    // TODO: fix overloading
-    //   string eth_getBalance(string address, ulong blockNumber);
-    string eth_getBalance(string address, string tag);
+    JSONValue eth_syncing();
+    string eth_getBalance(string address, JSONValue blockNumber);
+    string eth_coinbase();
+    bool eth_mining();
+    string eth_hashrate();
+    string[] eth_accounts();
+    string eth_sendTransaction(Transaction transaction);
 }
 
 alias RPCConnector = HttpJsonRpcAutoClient!IEthRPC;
+
