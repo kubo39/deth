@@ -2,13 +2,11 @@ import std.json;
 import std.array:replace;
 import std.stdio;
 import contract;
-
+import rpcconnector:RPCConnector;
 alias ERC20 = Contract!ERC20abi;
 
 void main()
-{   
-    ERC20 contract;
-    contract.transfer("0x188281811", "123456");
-    contract.approve("0x,123", "14134");
-    contract.transferFrom("0x123123", "0x434534", "123213");
+{
+    auto c = new RPCConnector("http://127.0.0.1:8545");
+    c.web3_clientVersion.writeln;
 }

@@ -3,3 +3,4 @@ description "Example of using metaprgramming for creating smart contracts interf
 authors "tynuk"
 copyright "Copyright © 2021, tynuk"
 license "MIT"
+dependency "rpc" version="~master"
