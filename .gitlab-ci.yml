@@ -19,8 +19,8 @@ before_script:
  - git submodule update    
 
 stages:          # List of stages for jobs, and their order of execution
-  - run
+  - build 
   
-run-job:       # This job runs in the build stage, which runs first.
+build-job:       # This job runs in the build stage, which runs first.
   stage: run
-  script: dub run
+  script: dub build
