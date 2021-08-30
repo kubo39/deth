@@ -40,7 +40,7 @@ class Contract(string buildPath, string bin){
             throw new Exception("Contract alredy deployed");
     }
     override string toString(){
-        return this.classinfo.name~" on "~address;
+        return " Contract on "~address;
     }
 }
 
