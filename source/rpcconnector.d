@@ -28,6 +28,7 @@ interface IEthRPC {
     string eth_hashrate();
     string[] eth_accounts();
     string eth_sendTransaction(Transaction transaction);
+    JSONValue eth_getTransactionReceipt(string data);
 }
 
 alias RPCConnector = HttpJsonRpcAutoClient!IEthRPC;
