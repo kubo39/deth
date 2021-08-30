@@ -4,3 +4,6 @@ authors "tynuk"
 copyright "Copyright © 2021, tynuk"
 license "MIT"
 dependency "rpc" version="*" path="d-rpc" 
+targetType "library"
+
+subPackage "examples/devtest"

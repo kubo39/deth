@@ -9,6 +9,7 @@ deth.dll
 deth.a
 deth.lib
 deth-test-*
+libdeth.a
 *.exe
 *.o
 *.obj

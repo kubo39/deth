@@ -1,0 +1,6 @@
+name "devtest"
+description "Application for test deth features"
+authors "tynuk"
+copyright "Copyright © 2021, tynuk"
+dependency "deth" version="*" path="../../"
+license "MIT"
