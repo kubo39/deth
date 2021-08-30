@@ -6,12 +6,14 @@ import std.bigint:BigInt;
 import contract;
 import rpcconnector;
 
-alias ERC20 = Contract!ERC20build;
+enum abiPath = "contractBuild/contracts_Test_sol_Test.abi";
+enum binPath = "contractBuild/contracts_Test_sol_Test.bin";
+alias TestContract = Contract!(abiPath,"0x"~import(binPath));
 
 void main()
 {
     IEthRPC eth = new RPCConnector("http://127.0.0.1:8545");
-    auto c = new ERC20(eth);
+    auto c = new TestContract(eth);
     c.deploy;
     
 }

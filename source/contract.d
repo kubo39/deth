@@ -6,15 +6,13 @@ import rpcconnector;
 
 enum STRINABLE = ["uint", "uint256", "string", "address"];
 
-enum ERC20build= "ERC20.json";
-
-class Contract(string buildPath){
+class Contract(string buildPath, string bin){
     enum build = import(buildPath).parseJSON;
-    enum abi = build["abi"];
+    enum abi = build;
     private string address;
     private IEthRPC conn;
 
-    static immutable string deployedBytecode = build["deployedBytecode"].str;
+    static immutable string deployedBytecode = bin;
     
     
     this(IEthRPC conn, string address = null){
