@@ -13,3 +13,5 @@ deth-test-*
 *.o
 *.obj
 *.lst
+
+*.log

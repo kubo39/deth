@@ -1,0 +1,3 @@
+[submodule "d-rpc"]
+	path = d-rpc
+	url = https://github.com/Tynukua/d-rpc
