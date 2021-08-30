@@ -6,23 +6,13 @@ import std.bigint:BigInt;
 import contract;
 import rpcconnector;
 
-alias ERC20 = Contract!ERC20abi;
+alias ERC20 = Contract!ERC20build;
 
 void main()
 {
-    IEthRPC c = new RPCConnector("http://127.0.0.1:8545");
-    string[] accounts =  c.eth_accounts;
-    writeln("First account's balance: ", 
-            c.eth_getBalance(accounts[0], "latest".JSONValue).BigInt);
-    writeln("Second account's balance: ", 
-            c.eth_getBalance(accounts[1], "latest".JSONValue).BigInt);
-    Transaction tr = {from: accounts[0], to: accounts[1], value: 1000000};
-    c.eth_sendTransaction(tr);
-    writeln("First account's balance: ", 
-            c.eth_getBalance(accounts[0], "latest".JSONValue)
-            .BigInt);
-    writeln("Second account's balance: ", 
-            c.eth_getBalance(accounts[1], "latest".JSONValue).BigInt);
+    IEthRPC eth = new RPCConnector("http://127.0.0.1:8545");
+    auto c = new ERC20(eth);
+    c.deploy;
     
 }
 
@@ -42,4 +32,20 @@ unittest {
     Transaction tr = {from: firstAccount, to: accounts[0], value: 100};
     c.eth_sendTransaction(tr);
     c.eth_getBalance(firstAccount, "latest".JSONValue).writeln;
+}
+
+unittest{
+    IEthRPC c = new RPCConnector("http://127.0.0.1:8545");
+    string[] accounts =  c.eth_accounts;
+    writeln("First account's balance: ", 
+            c.eth_getBalance(accounts[0], "latest".JSONValue).BigInt);
+    writeln("Second account's balance: ", 
+            c.eth_getBalance(accounts[1], "latest".JSONValue).BigInt);
+    Transaction tr = {from: accounts[0], to: accounts[1], value: 1000000};
+    c.eth_sendTransaction(tr);
+    writeln("First account's balance: ", 
+            c.eth_getBalance(accounts[0], "latest".JSONValue)
+            .BigInt);
+    writeln("Second account's balance: ", 
+            c.eth_getBalance(accounts[1], "latest".JSONValue).BigInt);
 }

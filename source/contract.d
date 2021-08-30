@@ -5,13 +5,62 @@ import std.algorithm:canFind;
 import rpcconnector;
 
 enum STRINABLE = ["uint", "uint256", "string", "address"];
-enum ERC20build= import("ERC20.json").parseJSON;
+
+enum ERC20build= "ERC20.json";
+
+class Contract(string buildPath){
+    enum build = import(buildPath).parseJSON;
+    enum abi = build["abi"];
+    private string address;
+    private IEthRPC conn;
+
+    static immutable string deployedBytecode = build["deployedBytecode"].str;
+    
+    
+    this(IEthRPC conn, string address = null){
+        this.conn = conn;
+        this.address = null;
+    }
+
+    mixin(allFunctions(abi));
+
+    // Send traansaction for deploy contract
+    void deploy(string from = null){
+        if(address is null){
+            Transaction tr;
+            tr.from = (from is null?conn.eth_accounts[0]:from);
+            tr.data = deployedBytecode;
+            auto trHash = conn.eth_sendTransaction(tr);
+            address = conn
+                .eth_getTransactionReceipt(trHash)["contractAddress"].str;
+
+            if(address)
+                throw new Exception("null address");
+        }
+        else
+            throw new Exception("Contract alredy deployed");
+    }
+}
+
+string toBytes32(T)(T v){
+    enum SIZE = T.sizeof;
+    ubyte* ptr = cast(ubyte*)v.ptr;
+    string value = "";
+    
+    for(int i = 0; i<SIZE; i++){
+        value~=ptr[SIZE-i-1].to!(string,16);
+    }
+
+    return value;
+}
+
 
 string parseFunction(JSONValue abi)
 {
     return(
         q{
             void $funcName ( $inputs ) {
+                
             }
         }.replace("$funcName", abi["name"].str)
          .replace("$inputs", abi["inputs"].getInputs)
@@ -50,49 +99,11 @@ string getInputs(JSONValue params){
         }
 
     }
-    return retVal[0..$-2];
+    if(retVal.length)
+        return retVal[0..$-2];
+    else return "";
 }
-
-class Contract(JSONValue compiledContract){
-    private string address;
-    private IEthRPC conn;
-    static immutable string deployedBytecode = compiledContract["deployedBytecode"].str;
-    mixin(allFunctions(compiledContract["abi"]));
-    
-    this(IEthRPC conn, string address = null){
-        this.address = null;
-    }
-    // Send traansaction for deploy contract
-    void deploy(string from = null){
-        if(address is null){
-            Transaction tr = {
-                from: (from is null?conn.eth_accounts[0]:from),
-                data: deployedBytecode,
-                };
-            auto trHash = conn.eth_sendTransaction(tr);
-            address = conn
-                .eth_getTransactionReceipt(trHash)["contractAddress"].str;
-
-            if(address)
-                throw new Exception("null address");
-        }
-        else
-            throw new Exception("Contract alredy deployed");
-    }
-    private string callMethod(string signature, string params){
-        
-    }
+unittest {
+    import std:writeln;
+    import(ERC20build).parseJSON["abi"].allFunctions.writeln;
 }
-
-string toBytes32(T)(T v){
-    enum SIZE = T.sizeof;
-    ubyte* ptr = cast(ubyte*)v.ptr;
-    string value = "";
-    
-    for(int i = 0; i<SIZE; i++){
-        value~=ptr[SIZE-i-1].to!(string,16);
-    }
-
-    return value;
-}
-
