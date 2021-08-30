@@ -19,4 +19,7 @@ stages:          # List of stages for jobs, and their order of execution
   
 run-job:       # This job runs in the build stage, which runs first.
   stage: run
+  before_script:
+   - git submodule init
+   - git submodule update  
   script: dub run
