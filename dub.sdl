@@ -1,5 +1,5 @@
 name "deth"
-description "Example of using metaprgramming for creating smart contracts interface from abi"
+description "Etherium stuff for D"
 authors "tynuk"
 copyright "Copyright © 2021, tynuk"
 license "MIT"
