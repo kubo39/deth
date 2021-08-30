@@ -15,7 +15,7 @@ class Contract(string buildPath, string bin){
     static immutable string deployedBytecode = bin;
     
     
-    this(IEthRPC conn, string address = null){
+    this(IEthRPC conn){
         this.conn = conn;
         this.address = null;
     }
@@ -28,15 +28,19 @@ class Contract(string buildPath, string bin){
             Transaction tr;
             tr.from = (from is null?conn.eth_accounts[0]:from);
             tr.data = deployedBytecode;
+            tr.gas = 6_721_975;
             auto trHash = conn.eth_sendTransaction(tr);
             address = conn
                 .eth_getTransactionReceipt(trHash)["contractAddress"].str;
 
-            if(address)
+            if(address is null)
                 throw new Exception("null address");
         }
         else
             throw new Exception("Contract alredy deployed");
+    }
+    override string toString(){
+        return this.classinfo.name~" on "~address;
     }
 }
 

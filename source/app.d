@@ -15,6 +15,7 @@ void main()
     IEthRPC eth = new RPCConnector("http://127.0.0.1:8545");
     auto c = new TestContract(eth);
     c.deploy;
+    c.writeln;
     
 }
 
