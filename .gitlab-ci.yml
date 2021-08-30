@@ -23,5 +23,5 @@ stages:          # List of stages for jobs, and their order of execution
   - build 
   
 build-job:       # This job runs in the build stage, which runs first.
-  stage: run
+  stage: build
   script: dub build
