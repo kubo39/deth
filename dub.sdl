@@ -3,7 +3,7 @@ description "Etherium stuff for D"
 authors "tynuk"
 copyright "Copyright © 2021, tynuk"
 license "MIT"
-dependency "rpc" version="*" path="d-rpc" 
+dependency "tynukrpc" version="*"
 targetType "library"
 
 subPackage "examples/devtest"
