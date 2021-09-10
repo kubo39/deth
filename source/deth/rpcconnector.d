@@ -32,7 +32,7 @@ interface IEthRPC {
     string eth_getStorageAt(string address, string pos, JSONValue blockNumber);
     string eth_getTransactionCount(string address, JSONValue blockNumber);
     string eth_getBlockTransactionCountByNumber(JSONValue blockNumber);
-    string eth_getUncleCountByBlockHash(string);
+    //string eth_getUncleCountByBlockHash(string);
     string eth_getUncleCountByBlockNumber(JSONValue blockNumber);
     string eth_getCode(string address, JSONValue blockNumber);
     string eth_sign(string address, string data);
