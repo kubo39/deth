@@ -54,3 +54,25 @@ interface IEthRPC {
 
 alias RPCConnector = HttpJsonRpcAutoClient!IEthRPC;
 
+
+unittest{
+    import std.stdio;
+    IEthRPC conn = new RPCConnector("http://127.0.0.1:8545");
+    conn.web3_clientVersion.writeln;
+    conn.web3_sha3("0x1234t66");
+    conn.net_version.writeln;
+    conn.net_listening.writeln;
+    conn.net_peerCount.writeln;
+    conn.eth_protocolVersion.writeln;
+    conn.eth_syncing.writeln;
+    conn.eth_mining.writeln;
+    conn.eth_hashrate.writeln;
+    conn.eth_gasPrice.writeln;
+    auto accounts = conn.eth_accounts;
+    accounts.writeln;
+    conn.eth_blockNumber.writeln;
+    conn.eth_getBalance(accounts[0], "latest".JSONValue);
+    conn.eth_getBalance(accounts[0], 1.JSONValue);
+    // conn. get storage at;
+
+}
