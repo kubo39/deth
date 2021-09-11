@@ -57,7 +57,9 @@ alias RPCConnector = HttpJsonRpcAutoClient!IEthRPC;
 
 unittest{
     import std.stdio;
-    IEthRPC conn = new RPCConnector("http://127.0.0.1:8545");
+    import std.process:environment;
+    auto host = environment.get("RPC_HOST", "127.0.0.1"); 
+    IEthRPC conn = new RPCConnector("http://"~host~":8545");
     conn.web3_clientVersion.writeln;
     conn.web3_sha3("0x1234t66");
     conn.net_version.writeln;
