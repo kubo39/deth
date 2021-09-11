@@ -71,8 +71,10 @@ unittest{
     auto accounts = conn.eth_accounts;
     accounts.writeln;
     conn.eth_blockNumber.writeln;
-    conn.eth_getBalance(accounts[0], "latest".JSONValue);
-    conn.eth_getBalance(accounts[0], 1.JSONValue);
+    conn.eth_getBalance(accounts[0], "latest".JSONValue).writeln;
+    conn.eth_getBalance(accounts[0], 0.JSONValue).writeln;
     // conn. get storage at;
-
+    conn.eth_getTransactionCount(accounts[0], "latest".JSONValue).writeln;
+    conn.eth_getBlockTransactionCountByNumber("latest".JSONValue).writeln;
+    conn.eth_sign(accounts[0], "0xaa1230fgD").writeln;
 }
