@@ -46,18 +46,6 @@ class Contract(string buildPath, string bin){
     }
 }
 
-string toBytes32(T)(T v){
-    enum SIZE = T.sizeof;
-    ubyte* ptr = cast(ubyte*)v.ptr;
-    string value = "";
-    
-    for(int i = 0; i<SIZE; i++){
-        value~=ptr[SIZE-i-1].to!(string,16);
-    }
-
-    return value;
-}
-
 
 string parseFunction(JSONValue abi)
 {
