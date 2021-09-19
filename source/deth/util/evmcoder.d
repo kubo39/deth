@@ -1,8 +1,10 @@
 module deth.util.evmcoder;
 
-import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray;
+import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray, 
+       isDynamicArray, FieldNameTuple, isAggregateType;
 import std: to, writeln;
 import std: BigInt, toHex;
+import std: map, join;
 
 import deth.util.types: FixedBytes;
 
@@ -28,14 +30,25 @@ string toBytes32(T)(T v){
         return value.addNulls;
     }
     else static if (isStaticArray!T){
-        import std: map, join;
         return v[].map!toBytes32.join;
     }
     else static if(isInstanceOf!(FixedBytes, T)){
         return v.toString.addNulls(false);
     }
+    else static if(isDynamicArray!T){
+        string t = v.length.toBytes32;
+        t ~= v.map!toBytes32.join;
+        return t;
+    }
     else static if(is(T == BigInt)){
         return v.toHex.addNulls;
+    }
+    else static if(is(T == struct)){
+        string t = "";
+        static foreach(field; FieldNameTuple!T){
+            t ~= __traits(getMember, v, field).toBytes32;
+        }
+        return t;
     }
     else static assert(0, "type");
 }
@@ -60,7 +73,12 @@ unittest{
     FixedBytes!10 b;
     b.value[0..3] = cast(ubyte[])"abc"; 
     int[2] staticarray= [1, 2 ];
-    auto r = toHex32String(10, staticarray, b, "0x123".BigInt);
+    struct S {
+        int a;
+        int b;
+    }
+    S s = {1000,0xabc};
+    auto r = toHex32String(10, staticarray, b, "0x123".BigInt, [1,0x123123],s);
     assert(r.length % 32*2 == 0);
     r.writeln;
 }
