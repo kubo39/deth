@@ -4,6 +4,7 @@ import std.json;
 import std.stdio;
 import std.array:replace, join;
 import std.algorithm:canFind;
+import deth.util.evmcoder:toHex32String;
 import deth.rpcconnector;
 
 enum STRINABLE = ["uint", "uint256", "string", "address"];
@@ -25,11 +26,12 @@ class Contract(string buildPath, string bin){
     mixin(allFunctions(abi));
 
     // Send traansaction for deploy contract
-    void deploy(string from = null){
+    void deploy(ARGS...)( ARGS argv){
+        string from = null;
         if(address is null){
             Transaction tr;
             tr.from = (from is null?conn.eth_accounts[0]:from);
-            tr.data = deployedBytecode;
+            tr.data = deployedBytecode~ toHex32String(argv);
             tr.gas = 6_721_975;
             auto trHash = conn.eth_sendTransaction(tr);
             address = conn

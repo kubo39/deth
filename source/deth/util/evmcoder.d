@@ -82,3 +82,10 @@ unittest{
     assert(r.length % 32*2 == 0);
     r.writeln;
 }
+
+unittest{
+    auto func(ARGS...)(ARGS argv){
+        return toHex32String(argv);
+    }   
+    func(1,2,3).writeln;
+}
