@@ -11,7 +11,9 @@ alias TestContract = Contract!(abiPath,"0x"~import(binPath));
 
 void main()
 {
-    IEthRPC eth = new RPCConnector("http://127.0.0.1:8545");
+    import std.process:environment;
+    auto host = environment.get("RPC_HOST", "127.0.0.1"); 
+    IEthRPC eth = new RPCConnector("http://"~host~":8545");
     auto c = new TestContract(eth);
     c.deploy(32);
     c.writeln;
