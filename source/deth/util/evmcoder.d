@@ -35,11 +35,6 @@ string toBytes32(T)(T v){
     else static if(isInstanceOf!(FixedBytes, T)){
         return v.toString.addNulls(false);
     }
-    else static if(isDynamicArray!T){
-        string t = v.length.toBytes32;
-        t ~= v.map!toBytes32.join;
-        return t;
-    }
     else static if(is(T == BigInt)){
         return v.toHex.addNulls;
     }
