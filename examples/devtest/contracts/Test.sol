@@ -3,6 +3,9 @@ pragma solidity >=0.7.0 <0.9.0;
 contract Test{
     mapping(address => int32) map;
 
+    constructor(int32 d){
+        map[msg.sender] = d;
+    }
     function set(int32 value)public{
         map[msg.sender] = value;
     }
