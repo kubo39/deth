@@ -73,7 +73,7 @@ unittest{
         int b;
     }
     S s = {1000,0xabc};
-    auto r = toHex32String(10, staticarray, b, "0x123".BigInt, [1,0x123123],s);
+    auto r = toHex32String(10, staticarray, b, "0x123".BigInt, s);
     assert(r.length % 32*2 == 0);
     r.writeln;
 }
