@@ -3,7 +3,7 @@ module deth.util.evmcoder;
 import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray, 
        isDynamicArray, FieldNameTuple, isAggregateType;
 import std: to, writeln;
-import std: BigInt, toHex;
+import std: BigInt, toHex, replace;
 import std: map, join;
 
 import deth.util.types: FixedBytes;
@@ -36,7 +36,7 @@ string toBytes32(T)(T v){
         return v.toString.addNulls(false);
     }
     else static if(is(T == BigInt)){
-        return v.toHex.addNulls;
+        return v.toHex.replace("_", "").addNulls;
     }
     else static if(is(T == struct)){
         string t = "";

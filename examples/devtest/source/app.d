@@ -1,13 +1,13 @@
 import std.json;
 import std.array:replace;
 import std.stdio;
-import std.conv:to;
+import std.conv:to,text;
 import std.bigint:BigInt;
 import deth;
 
 enum abiPath = "contractBuild/Test.abi";
 enum binPath = "contractBuild/Test.bin";
-alias TestContract = Contract!(abiPath,"0x"~import(binPath));
+ alias TestContract = Contract!(abiPath,"0x"~import(binPath));
 
 void main()
 {
@@ -17,6 +17,7 @@ void main()
     auto c = new TestContract(eth);
     c.deploy(32);
     c.writeln;
+    c.get(eth.eth_accounts[0].BigInt); 
     
 }
 
