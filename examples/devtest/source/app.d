@@ -18,7 +18,6 @@ void main()
     c.deploy(32);
     c.writeln;
     c.get(eth.eth_accounts[0].BigInt); 
-    
 }
 
 unittest {

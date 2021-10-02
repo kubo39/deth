@@ -2,6 +2,7 @@ module deth.util.evmcoder;
 
 import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray, 
        isDynamicArray, FieldNameTuple, isAggregateType;
+import std: ElementType;
 import std: to, writeln;
 import std: BigInt, toHex, replace;
 import std: map, join;
@@ -9,11 +10,40 @@ import std: map, join;
 import deth.util.types: FixedBytes;
 
 string toHex32String(ARGS...) (ARGS args){
-    string t = "";
+    string value = "";
+    string dynamicValue = "";
+
+    ulong offset = args.length*32;
+    
     foreach(arg; args){
-        t~=arg.toBytes32;
+        static if(isDynamicArray!(typeof(arg))){
+            value ~= offset.toBytes32;
+            string tmpDynamicValue = arg.toBytes32D(offset);
+            offset += tmpDynamicValue.length/2;
+            dynamicValue~=tmpDynamicValue;
+        }
+        else {
+            value ~= arg.toBytes32;
+        }
     }
-    return t; 
+    return value~dynamicValue; 
+}
+
+string toBytes32D(T)(T v, ulong offset){
+    alias elemType = ElementType!T;
+
+    string value = v.length.toBytes32;
+    
+    static if (isDynamicArray!elemType){
+        static assert(0, "array of arrays is not avaliable now...");
+    }
+    else {
+        foreach(e; v){
+            value ~= e.toBytes32;
+        }
+    }
+    return value;
+    
 }
 
 string toBytes32(T)(T v){
@@ -73,14 +103,17 @@ unittest{
         int b;
     }
     S s = {1000,0xabc};
-    auto r = toHex32String(10, staticarray, b, "0x123".BigInt, s);
+    auto r = toHex32String(
+            10, staticarray, b, "0x123".BigInt, [0x10,0x123,0x246], s
+            );
     assert(r.length % 32*2 == 0);
     r.writeln;
+    toHex32String([0x101,0x12345,0x246123]).writeln;
 }
 
 unittest{
     auto func(ARGS...)(ARGS argv){
         return toHex32String(argv);
     }   
-    func(1,2,3).writeln;
+    func(1,2,3);
 }
