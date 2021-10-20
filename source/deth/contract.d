@@ -28,7 +28,6 @@ class Contract(string buildPath, string bin){
     debug pragma(msg, allFunctions(abi));
     mixin(allFunctions(abi));
 
-    
     // Send traansaction for deploy contract
     void deploy(ARGS...)( ARGS argv){
         string from = null;
