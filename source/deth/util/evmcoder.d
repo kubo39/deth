@@ -108,7 +108,7 @@ unittest{
             );
     assert(r.length % 32*2 == 0);
     r.writeln;
-    toHex32String([0x101,0x12345,0x246123]).writeln;
+    toHex32String([0x101,0x12345,0x246123], [0x420420420]).writeln;
 }
 
 unittest{
