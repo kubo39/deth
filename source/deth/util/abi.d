@@ -1,4 +1,4 @@
-module deth.util.evmcoder;
+module deth.util.abi;
 
 import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray, 
        isDynamicArray, FieldNameTuple, isAggregateType;
