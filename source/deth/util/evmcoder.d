@@ -111,9 +111,3 @@ unittest{
     toHex32String([0x101,0x12345,0x246123], [0x420420420]).writeln;
 }
 
-unittest{
-    auto func(ARGS...)(ARGS argv){
-        return toHex32String(argv);
-    }   
-    func(1,2,3);
-}
