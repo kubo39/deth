@@ -6,7 +6,7 @@ import std.stdio;
 import std.array: replace, join;
 import std.string: indexOf;
 import std.algorithm: canFind;
-import deth.util.evmcoder: toHex32String;
+import deth.util.abi: toHex32String;
 import deth.rpcconnector;
 
 enum INTEGRAL = ["address"];
@@ -25,8 +25,10 @@ class Contract(string buildPath, string bin){
         this.address = null;
     }
 
-    mixin(allFunctions(abi));
     debug pragma(msg, allFunctions(abi));
+    mixin(allFunctions(abi));
+
+    
     // Send traansaction for deploy contract
     void deploy(ARGS...)( ARGS argv){
         string from = null;
