@@ -9,7 +9,7 @@ import std: map, join;
 import std: array, iota;
 import deth.util.types: FixedBytes;
 
-string toHex32String(ARGS...) (ARGS args){
+string encode(ARGS...) (ARGS args){
     string value = "";
     string dynamicValue = "";
 
@@ -107,12 +107,12 @@ unittest{
         int b;
     }
     S s = {1000,0xabc};
-    auto r = toHex32String(
+    auto r = encode(
             10, staticarray, b, "0x123".BigInt, [0x10,0x123,0x246], s
             );
     assert(r.length % 32*2 == 0);
     r.writeln;
-    toHex32String([0x101,0x12345,0x246123], [0x420420420]).writeln;
+    encode([0x101,0x12345,0x246123], [0x420420420]).writeln;
 }
 
 BigInt[] split32(string a){
@@ -136,7 +136,7 @@ auto formatWriteln(T)(T a){
 }
 unittest{
     int[][][] a = [[[1, 2, 3], [4, 5], [6]], [[7,8],[9]]];
-    auto encoded = toHex32String(a, a );
+    auto encoded = encode(a, a );
     auto arr = encoded.split32;
     arr.length.iota.formatWriteln;
     writeln;

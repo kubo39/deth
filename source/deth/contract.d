@@ -6,7 +6,7 @@ import std.stdio;
 import std.array: replace, join;
 import std.string: indexOf;
 import std.algorithm: canFind;
-import deth.util.abi: toHex32String;
+import deth.util.abi: encode;
 import deth.rpcconnector;
 
 enum INTEGRAL = ["address"];
@@ -34,7 +34,7 @@ class Contract(string buildPath, string bin){
         if(address is null){
             Transaction tr;
             tr.from = (from is null?conn.eth_accounts[0]:from);
-            tr.data = deployedBytecode~ toHex32String(argv);
+            tr.data = deployedBytecode~ encode(argv);
             tr.gas = 6_721_975;
             auto trHash = conn.eth_sendTransaction(tr);
             address = conn
@@ -52,7 +52,7 @@ class Contract(string buildPath, string bin){
 
     void callMethod(string signiture, ARGS...)(ARGS argv){
         string hash = conn.web3_sha3(signiture)[0..10]; //takin first 4 bytes
-        string inputs = argv.toHex32String;
+        string inputs = argv.encode;
         Transaction tr;
         tr.data = hash ~ inputs;
         tr.from = conn.eth_accounts[0];
