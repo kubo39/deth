@@ -3,10 +3,10 @@ module deth.util.abi;
 import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray, 
        isDynamicArray, FieldNameTuple, isAggregateType;
 import std: ElementType;
-import std: to, writeln;
+import std: to, writeln, writef;
 import std: BigInt, toHex, replace;
 import std: map, join;
-
+import std: array, iota;
 import deth.util.types: FixedBytes;
 
 string toHex32String(ARGS...) (ARGS args){
@@ -14,28 +14,31 @@ string toHex32String(ARGS...) (ARGS args){
     string dynamicValue = "";
 
     ulong offset = args.length*32;
-    
     foreach(arg; args){
         static if(isDynamicArray!(typeof(arg))){
             value ~= offset.toBytes32;
-            string tmpDynamicValue = arg.toBytes32D(offset);
-            offset += tmpDynamicValue.length/2;
-            dynamicValue~=tmpDynamicValue;
+            dynamicValue ~= arg.toBytes32D(offset);
         }
         else {
             value ~= arg.toBytes32;
         }
     }
-    return value~dynamicValue; 
+    return value ~ dynamicValue; 
 }
 
-string toBytes32D(T)(T v, ulong offset){
+string toBytes32D(T)(T v, ref ulong offset){
     alias elemType = ElementType!T;
 
     string value = v.length.toBytes32;
-    
+    offset += (v.length+1)*32;
+
     static if (isDynamicArray!elemType){
-        static assert(0, "array of arrays is not avaliable now...");
+        string dynamicValue = "";
+        foreach(e; v){
+            value ~= offset.toBytes32;
+            dynamicValue ~= e.toBytes32D(offset);
+        }
+        value ~= dynamicValue;
     }
     else {
         foreach(e; v){
@@ -78,6 +81,7 @@ string toBytes32(T)(T v){
     else static assert(0, "type");
 }
 
+
 string addNulls(string t, bool front = true)
 in(t.length<=64)
 {
@@ -109,5 +113,35 @@ unittest{
     assert(r.length % 32*2 == 0);
     r.writeln;
     toHex32String([0x101,0x12345,0x246123], [0x420420420]).writeln;
+}
+
+BigInt[] split32(string a){
+    auto sliceCount = a.length/64;
+    string[] v = [];
+    v.reserve(sliceCount);
+    foreach(i; 0..sliceCount){
+        v ~= a[i*64..(i+1)*64];
+    }
+    return v
+        .map!`"0x"~a`
+        .map!BigInt
+        .array;
+}
+
+auto formatWriteln(T)(T a){
+    foreach(e;a){
+        writef("%4d ", e);
+    }
+    writeln;
+}
+unittest{
+    int[][][] a = [[[1, 2, 3], [4, 5], [6]], [[7,8],[9]]];
+    auto encoded = toHex32String(a, a );
+    auto arr = encoded.split32;
+    arr.length.iota.formatWriteln;
+    writeln;
+    arr.formatWriteln;
+    arr.map!"a/32".formatWriteln;
+    encoded.writeln;
 }
 
