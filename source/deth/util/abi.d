@@ -1,9 +1,9 @@
 module deth.util.abi;
 
-import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray, 
+import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray,
        isDynamicArray, FieldNameTuple, isAggregateType;
 import std: ElementType;
-import std: to, writeln, writef;
+import std: to, writeln, writef, text;
 import std: BigInt, toHex, replace;
 import std: map, join;
 import std: array, iota;
@@ -12,7 +12,7 @@ import deth.util.types: FixedBytes;
 string encode(ARGS...) (ARGS args){
     string value = "";
     string dynamicValue = "";
-
+    args.writeln;
     ulong offset = args.length*32;
     foreach(arg; args){
         static if(isDynamicArray!(typeof(arg))){
@@ -23,7 +23,7 @@ string encode(ARGS...) (ARGS args){
             value ~= arg.toBytes32;
         }
     }
-    return value ~ dynamicValue; 
+    return value ~ dynamicValue;
 }
 
 string toBytes32D(T)(T v, ref ulong offset){
@@ -46,15 +46,15 @@ string toBytes32D(T)(T v, ref ulong offset){
         }
     }
     return value;
-    
+
 }
 
 string toBytes32(T)(T v){
-    static if(isBoolean!T || isIntegral!T){ 
+    static if(isBoolean!T || isIntegral!T){
         enum SIZE = T.sizeof;
         ubyte* ptr = cast(ubyte*) &v;
         string value = "";
-        
+
         for(int i = 0; i<SIZE; i++){
             string b = ptr[SIZE-i-1].to!string(16);
             value~= (b.length==2?b:"0"~b);
@@ -81,6 +81,37 @@ string toBytes32(T)(T v){
     else static assert(0, "type");
 }
 
+auto tuplelize(ARGS...)(ARGS argv){
+    auto code(){ 
+        string[] res;  
+        foreach (i; 0..argv.length){
+            res ~= text(`tuplelizeT(argv[`,i,`])`);
+        }
+        return res.join("~ ");
+    }
+    mixin(`return `~ code~ `;`);
+}
+
+auto tuplelizeT(T)(T v){
+    import std: tuple;
+    static if(isStaticArray!T){
+        mixin(q{
+                return tuple(}
+                        ~ v.length.iota.map!q{text(`v[`, a, `]`)}.join(`, `)
+                        ~ `);`
+             );
+    }else static if (is(T == struct)){
+        auto code(){ 
+            string[] res;  
+            foreach (field; FieldNameTuple!T){
+                res ~= `tuplelizeT(v.`~field~')';
+            }
+            return res.join("~ ");
+        }
+        mixin(`return `~ code~ `;`);  
+    }
+    else return tuple(v);
+}
 
 string addNulls(string t, bool front = true)
 in(t.length<=64)
@@ -100,7 +131,7 @@ in(t.length<=64)
 unittest{
     "to Hex 32 test".writeln;
     FixedBytes!10 b;
-    b.value[0..3] = cast(ubyte[])"abc"; 
+    b.value[0..3] = cast(ubyte[])"abc";
     int[2] staticarray= [1, 2 ];
     struct S {
         int a;
@@ -145,3 +176,16 @@ unittest{
     encoded.writeln;
 }
 
+unittest {
+    struct Wallet{
+        int[2] curr = [0x1, 0x2];
+    }
+
+    struct Person{
+        int age = 123;
+        Wallet w;
+    }
+
+    Person b;
+    tuplelize(b, "1123", [1,2,3,4,5]).writeln;
+}
