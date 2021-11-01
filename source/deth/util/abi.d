@@ -5,81 +5,66 @@ import std.traits:isInstanceOf, isIntegral,isBoolean, isStaticArray,
 import std: ElementType;
 import std: to, writeln, writef, text;
 import std: BigInt, toHex, replace;
-import std: map, join;
+import std: map, join, fold;
 import std: array, iota;
 import deth.util.types: FixedBytes;
 
-string encode(ARGS...) (ARGS args){
-    string value = "";
-    string dynamicValue = "";
-    args.writeln;
+string encode(ARGS...) (ARGS args_){
+    Pair res = {"", ""};
+    auto args = args_.tuplelize;
     ulong offset = args.length*32;
     foreach(arg; args){
-        static if(isDynamicArray!(typeof(arg))){
-            value ~= offset.toBytes32;
-            dynamicValue ~= arg.toBytes32D(offset);
-        }
-        else {
-            value ~= arg.toBytes32;
-        }
+        res ~= arg.encodeUnit(offset);
     }
-    return value ~ dynamicValue;
+    return res.value ~ res.data; 
 }
 
-string toBytes32D(T)(T v, ref ulong offset){
-    alias elemType = ElementType!T;
-
-    string value = v.length.toBytes32;
-    offset += (v.length+1)*32;
-
-    static if (isDynamicArray!elemType){
-        string dynamicValue = "";
-        foreach(e; v){
-            value ~= offset.toBytes32;
-            dynamicValue ~= e.toBytes32D(offset);
+struct Pair{
+    string value; // static encoded
+    string data; // dynamic encoded
+    Pair opOpAssign(string op)(Pair a){
+        static if(op == "~"){
+            value~= a.value;
+            data~= a.data;
+            return this;
         }
-        value ~= dynamicValue;
+        
     }
-    else {
-        foreach(e; v){
-            value ~= e.toBytes32;
-        }
-    }
-    return value;
-
 }
 
-string toBytes32(T)(T v){
+Pair encodeUnit(T)(T v, ref ulong offset){
+    Pair result;
+    result.data = "";
     static if(isBoolean!T || isIntegral!T){
-        enum SIZE = T.sizeof;
-        ubyte* ptr = cast(ubyte*) &v;
-        string value = "";
-
-        for(int i = 0; i<SIZE; i++){
-            string b = ptr[SIZE-i-1].to!string(16);
-            value~= (b.length==2?b:"0"~b);
-        }
-
-        return value.addNulls;
-    }
-    else static if (isStaticArray!T){
-        return v[].map!toBytes32.join;
-    }
-    else static if(isInstanceOf!(FixedBytes, T)){
-        return v.toString.addNulls(false);
-    }
-    else static if(is(T == BigInt)){
-        return v.toHex.replace("_", "").addNulls;
-    }
-    else static if(is(T == struct)){
-        string t = "";
+        result.value = v.BigInt.toHex.replace("_", "").addNulls;
+    } else static if (isStaticArray!T){
+        result ~= v[].map!(e => e.encodeUnit(offset)).fold!(
+                (a,b) => Pair(a.value~b.value, a.data ~ b.data));
+    } else static if(isInstanceOf!(FixedBytes, T)){
+        result.value = v.toString.addNulls(false);
+    } else static if( is(T == BigInt) ) {
+        result.value = v.toHex.replace("_", "").addNulls;
+    } else static if (is( T == struct)) {
+        result.value = "";
         static foreach(field; FieldNameTuple!T){
-            t ~= __traits(getMember, v, field).toBytes32;
+             Pair t = __traits(getMember, v, field).encodeUnit(offset);
+             result.value ~= t.value;
+             result.data ~= t.data;
         }
-        return t;
+    } else static if (isDynamicArray!T){
+        alias elemType = ElementType!T;
+        ulong TODO_offset = 0;
+        result.value = offset.encodeUnit(TODO_offset).value;
+        offset += v[0].tuplelizeT.length*(v.length+1)*32;
+        foreach(e; v){
+            Pair t = e.encodeUnit(offset);
+            result.data ~= t.value ~ t.data;
+        }
     }
-    else static assert(0, "type");
+
+    return result;
 }
+
 
 auto tuplelize(ARGS...)(ARGS argv){
     auto code(){ 
@@ -94,7 +79,9 @@ auto tuplelize(ARGS...)(ARGS argv){
 
 auto tuplelizeT(T)(T v){
     import std: tuple;
-    static if(isStaticArray!T){
+    static if(is(T==BigInt)|| isInstanceOf!(FixedBytes, T)){
+        return tuple(v);
+    }else static if(isStaticArray!T){
         mixin(q{
                 return tuple(}
                         ~ v.length.iota.map!q{text(`v[`, a, `]`)}.join(`, `)
@@ -128,23 +115,6 @@ in(t.length<=64)
     }
 }
 
-unittest{
-    "to Hex 32 test".writeln;
-    FixedBytes!10 b;
-    b.value[0..3] = cast(ubyte[])"abc";
-    int[2] staticarray= [1, 2 ];
-    struct S {
-        int a;
-        int b;
-    }
-    S s = {1000,0xabc};
-    auto r = encode(
-            10, staticarray, b, "0x123".BigInt, [0x10,0x123,0x246], s
-            );
-    assert(r.length % 32*2 == 0);
-    r.writeln;
-    encode([0x101,0x12345,0x246123], [0x420420420]).writeln;
-}
 
 BigInt[] split32(string a){
     auto sliceCount = a.length/64;
@@ -165,27 +135,20 @@ auto formatWriteln(T)(T a){
     }
     writeln;
 }
-unittest{
-    int[][][] a = [[[1, 2, 3], [4, 5], [6]], [[7,8],[9]]];
-    auto encoded = encode(a, a );
+
+void runTest(ARGS...)(ARGS argv){
+    auto encoded = encode(argv);
     auto arr = encoded.split32;
     arr.length.iota.formatWriteln;
     writeln;
     arr.formatWriteln;
     arr.map!"a/32".formatWriteln;
     encoded.writeln;
+
 }
 
-unittest {
-    struct Wallet{
-        int[2] curr = [0x1, 0x2];
-    }
-
-    struct Person{
-        int age = 123;
-        Wallet w;
-    }
-
-    Person b;
-    tuplelize(b, "1123", [1,2,3,4,5]).writeln;
+unittest{
+    runTest(0x122);
+    runTest([1,2,3]);
+    runTest([1,2,3], [4,5,6]);
 }
