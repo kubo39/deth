@@ -142,7 +142,7 @@ auto formatWriteln(T)(T a){
 void runTest(ARGS...)(ARGS argv){
     auto encoded = encode(argv);
     auto arr = encoded.split32;
-    arr.writeln;
+    writeln(ARGS.stringof, argv);
     arr.length.iota.formatWriteln;
     arr.formatWriteln;
     arr.map!"a/32".formatWriteln;
