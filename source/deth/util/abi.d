@@ -28,7 +28,6 @@ struct Pair{
             data~= a.data;
             return this;
         }
-        
     }
 }
 
@@ -143,12 +142,12 @@ auto formatWriteln(T)(T a){
 void runTest(ARGS...)(ARGS argv){
     auto encoded = encode(argv);
     auto arr = encoded.split32;
+    arr.writeln;
     arr.length.iota.formatWriteln;
-    writeln;
     arr.formatWriteln;
     arr.map!"a/32".formatWriteln;
     encoded.writeln;
-
+    writeln;
 }
 
 unittest{
