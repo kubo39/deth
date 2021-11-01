@@ -53,10 +53,9 @@ Pair encodeUnit(T)(T v, ref ulong offset){
         }
     } else static if (isDynamicArray!T){
         alias elemType = ElementType!T;
-        ulong TODO_offset = 0;
-        result.value = offset.encodeUnit(TODO_offset).value;
+        result.value = offset.encodeUnit.value;
         offset += v[0].tuplelizeT.length*(v.length+1)*32;
-        result.data ~= v.length.encodeUnit(TODO_offset).value;
+        result.data ~= v.length.encodeUnit.value;
         Pair t;
         foreach(e; v){
             t ~= e.encodeUnit(offset);
@@ -66,7 +65,10 @@ Pair encodeUnit(T)(T v, ref ulong offset){
 
     return result;
 }
-
+Pair encodeUnit(T)(T v){
+    ulong DUMMY_OFFSET = 0;
+    return encodeUnit(v, DUMMY_OFFSET);
+}
 
 auto tuplelize(ARGS...)(ARGS argv){
     auto code(){ 
