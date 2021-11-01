@@ -20,8 +20,8 @@ string encode(ARGS...) (ARGS args_){
 }
 
 struct Pair{
-    string value; // static encoded
-    string data; // dynamic encoded
+    string value=""; // static encoded
+    string data = ""; // dynamic encoded
     Pair opOpAssign(string op)(Pair a){
         static if(op == "~"){
             value~= a.value;
@@ -56,10 +56,12 @@ Pair encodeUnit(T)(T v, ref ulong offset){
         ulong TODO_offset = 0;
         result.value = offset.encodeUnit(TODO_offset).value;
         offset += v[0].tuplelizeT.length*(v.length+1)*32;
+        result.data ~= v.length.encodeUnit(TODO_offset).value;
+        Pair t;
         foreach(e; v){
-            Pair t = e.encodeUnit(offset);
-            result.data ~= t.value ~ t.data;
+            t ~= e.encodeUnit(offset);
         }
+        result.data ~= t.value ~ t.data;
     }
 
     return result;
@@ -150,5 +152,5 @@ void runTest(ARGS...)(ARGS argv){
 unittest{
     runTest(0x122);
     runTest([1,2,3]);
-    runTest([1,2,3], [4,5,6]);
+    runTest([[10, 20, 30], [40,50,60]],[90,100]);
 }
