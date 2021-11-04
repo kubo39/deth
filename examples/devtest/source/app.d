@@ -18,6 +18,7 @@ void main()
     c.deploy(32);
     c.writeln;
     c.get(eth.eth_accounts[0].BigInt); 
+    c.callMethod!"test(uint256,uint256[])"(10, [1,2,3,4,5]);
 }
 
 unittest {

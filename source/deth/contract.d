@@ -9,7 +9,7 @@ import std.algorithm: canFind;
 import deth.util.abi: encode;
 import deth.rpcconnector;
 
-enum INTEGRAL = ["address"];
+enum INTEGRAL = ["address", "uint256", "int256", "int32"];
 
 class Contract(string buildPath, string bin){
     enum build = import(buildPath).parseJSON;
@@ -92,13 +92,12 @@ string getInputs(JSONValue params, bool typed = true){
     string[] inputs = [];
     foreach(param; params.array){
         try{
-
             if (param["type"].str.isIntegral){
                 
                 inputs ~= (typed?"BigInt ":"") ~ param["name"].str;
             } else if ("bool" == param["type"].str){
                 inputs ~= (typed?"bool ":"") ~ param["name"].str;
-            } else assert(0, "not supported tupe");
+            } 
         }
         catch(Exception e){
             continue;
@@ -120,6 +119,10 @@ string getSigniture(JSONValue abi){
 
 bool isIntegral(string typeName){
     return 
-        INTEGRAL.canFind(typeName) ||
-        typeName.indexOf("int") >=0;
+        INTEGRAL.canFind(typeName); 
 }
+
+bool isDynamicArray(string typeName){
+    return typeName[$-2..$] == "[]";
+}
+

@@ -9,19 +9,24 @@ import std: map, join, fold;
 import std: array, iota;
 import deth.util.types: FixedBytes;
 
+enum OFFSET_PREFIX = '\0';
+
 string encode(ARGS...) (ARGS args_){
+    EncodingResult res;
     auto args = args_.tuplelize;
     ulong offset = args.length*32;
     foreach(arg; args){
         res ~= arg.encodeUnit(offset);
     }
     auto encoded = res.value ~ res.data; 
+    encoded = encoded.cutOffsets;
+
+    encoded.writeln;
     auto arr = encoded.split32;
     writeln(ARGS.stringof, args_);
     arr.length.iota.formatWriteln;
     arr.formatWriteln;
     arr.map!"a/32".formatWriteln;
-    encoded.writeln;
     writeln;
     return encoded; 
 }
@@ -29,6 +34,7 @@ string encode(ARGS...) (ARGS args_){
 struct EncodingResult{
     string value=""; // static encoded
     string data = ""; // dynamic encoded
+
     EncodingResult opOpAssign(string op)(EncodingResult a){
         static if(op == "~"){
             value~= a.value;
@@ -52,13 +58,12 @@ EncodingResult encodeUnit(T)(T v, ref ulong offset){
     } else static if (is( T == struct)) {
         static foreach(field; FieldNameTuple!T){
              EncodingResult t = __traits(getMember, v, field).encodeUnit(offset);
-             result.value ~= t.value;
-             result.data ~= t.data;
+             result ~= t;
         }
     } else static if (isDynamicArray!T){
         alias elemType = ElementType!T;
-        result.value = offset.encodeUnit.value;
-        offset = v[0].tuplelizeT.length*(v.length+1)*32;
+        result.value = OFFSET_PREFIX ~ offset.encodeUnit.value;
+        offset += v[0].tuplelizeT.length*(v.length+1)*32;
         result.data ~= v.length.encodeUnit.value;
         EncodingResult t;
         foreach(e; v){
@@ -66,7 +71,6 @@ EncodingResult encodeUnit(T)(T v, ref ulong offset){
         }
         result.data ~= t.value ~ t.data;
     }
-
     return result;
 }
 EncodingResult encodeUnit(T)(T v){
@@ -121,6 +125,21 @@ in(t.length<=64)
     else {
         return t~nulls;
     }
+}
+
+string cutOffsets(string encoded){
+    string cut = "";
+    while (encoded.length){
+        if(encoded[0] != OFFSET_PREFIX){
+            cut ~= encoded[0..64];
+            encoded = encoded[64..$];
+        }
+        else{
+            cut ~= encodeUnit(("0x"~encoded[1..65]).BigInt - cut.length/2).value;
+            encoded = encoded[65..$];
+        } 
+    }
+    return cut;
 }
 
 
