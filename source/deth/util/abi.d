@@ -10,19 +10,26 @@ import std: array, iota;
 import deth.util.types: FixedBytes;
 
 string encode(ARGS...) (ARGS args_){
-    Pair res = {"", ""};
     auto args = args_.tuplelize;
     ulong offset = args.length*32;
     foreach(arg; args){
         res ~= arg.encodeUnit(offset);
     }
-    return res.value ~ res.data; 
+    auto encoded = res.value ~ res.data; 
+    auto arr = encoded.split32;
+    writeln(ARGS.stringof, args_);
+    arr.length.iota.formatWriteln;
+    arr.formatWriteln;
+    arr.map!"a/32".formatWriteln;
+    encoded.writeln;
+    writeln;
+    return encoded; 
 }
 
-struct Pair{
+struct EncodingResult{
     string value=""; // static encoded
     string data = ""; // dynamic encoded
-    Pair opOpAssign(string op)(Pair a){
+    EncodingResult opOpAssign(string op)(EncodingResult a){
         static if(op == "~"){
             value~= a.value;
             data~= a.data;
@@ -31,31 +38,29 @@ struct Pair{
     }
 }
 
-Pair encodeUnit(T)(T v, ref ulong offset){
-    Pair result;
-    result.data = "";
+EncodingResult encodeUnit(T)(T v, ref ulong offset){
+    EncodingResult result;
     static if(isBoolean!T || isIntegral!T){
         result.value = v.BigInt.toHex.replace("_", "").addNulls;
     } else static if (isStaticArray!T){
         result ~= v[].map!(e => e.encodeUnit(offset)).fold!(
-                (a,b) => Pair(a.value~b.value, a.data ~ b.data));
+                (a,b) => EncodingResult(a.value~b.value, a.data ~ b.data));
     } else static if(isInstanceOf!(FixedBytes, T)){
         result.value = v.toString.addNulls(false);
     } else static if( is(T == BigInt) ) {
         result.value = v.toHex.replace("_", "").addNulls;
     } else static if (is( T == struct)) {
-        result.value = "";
         static foreach(field; FieldNameTuple!T){
-             Pair t = __traits(getMember, v, field).encodeUnit(offset);
+             EncodingResult t = __traits(getMember, v, field).encodeUnit(offset);
              result.value ~= t.value;
              result.data ~= t.data;
         }
     } else static if (isDynamicArray!T){
         alias elemType = ElementType!T;
         result.value = offset.encodeUnit.value;
-        offset += v[0].tuplelizeT.length*(v.length+1)*32;
+        offset = v[0].tuplelizeT.length*(v.length+1)*32;
         result.data ~= v.length.encodeUnit.value;
-        Pair t;
+        EncodingResult t;
         foreach(e; v){
             t ~= e.encodeUnit(offset);
         }
@@ -64,7 +69,7 @@ Pair encodeUnit(T)(T v, ref ulong offset){
 
     return result;
 }
-Pair encodeUnit(T)(T v){
+EncodingResult encodeUnit(T)(T v){
     ulong DUMMY_OFFSET = 0;
     return encodeUnit(v, DUMMY_OFFSET);
 }
