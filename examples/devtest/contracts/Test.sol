@@ -2,7 +2,7 @@
 pragma solidity >=0.7.0 <0.9.0;
 contract Test{
     mapping(address => int32) map;
-    uint[] _b = [1,2,3,4,5];
+    uint[][] _b = [[1,2,3],[4,5]];
 
     constructor(int32 d){
         map[msg.sender] = d;
@@ -15,18 +15,15 @@ contract Test{
         return map[user];
     }
     
-    function test(uint a, uint[] memory b) public view{
+    function test(uint a, uint[][] memory b) public view{
         
         require(a == 10 &&
                 testB(b), 
                 "Test no passed Test no passed Test no passed Test no passed ");
     }
 
-    function testB(uint[]memory b) internal view returns(bool){
+    function testB(uint[][] memory b) internal view returns(bool){
         if(b.length != _b.length) return false;
-        for(uint i = 0;i < b.length; i++ ){
-            if(b[i]!= _b[i]) return false;
-        }
         return true;
     }
     

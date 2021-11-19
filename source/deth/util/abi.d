@@ -14,12 +14,18 @@ enum OFFSET_PREFIX = '\0';
 string encode(ARGS...) (ARGS args_){
     EncodingResult res;
     auto args = args_.tuplelize;
-    ulong offset = args.length*32;
+    ulong offset = args.length * 32;
     foreach(arg; args){
-        res ~= arg.encodeUnit(offset);
+        auto t = arg.encodeUnit;
+        if(t.value == ""){
+            t.value ~= offset.encodeUnit.value;
+        }
+        res ~= t;
+        offset += t.data.length/2;
+        
     }
     auto encoded = res.value ~ res.data; 
-    encoded = encoded.cutOffsets;
+    encoded = encoded;
 
     encoded.writeln;
     auto arr = encoded.split32;
@@ -44,12 +50,12 @@ struct EncodingResult{
     }
 }
 
-EncodingResult encodeUnit(T)(T v, ref ulong offset){
+EncodingResult encodeUnit(T)(T v){
     EncodingResult result;
     static if(isBoolean!T || isIntegral!T){
         result.value = v.BigInt.toHex.replace("_", "").addNulls;
     } else static if (isStaticArray!T){
-        result ~= v[].map!(e => e.encodeUnit(offset)).fold!(
+        result ~= v[].map!(e => e.encodeUnit).fold!(
                 (a,b) => EncodingResult(a.value~b.value, a.data ~ b.data));
     } else static if(isInstanceOf!(FixedBytes, T)){
         result.value = v.toString.addNulls(false);
@@ -57,25 +63,24 @@ EncodingResult encodeUnit(T)(T v, ref ulong offset){
         result.value = v.toHex.replace("_", "").addNulls;
     } else static if (is( T == struct)) {
         static foreach(field; FieldNameTuple!T){
-             EncodingResult t = __traits(getMember, v, field).encodeUnit(offset);
-             result ~= t;
+            result ~= __traits(getMember, v, field).encodeUnit;
         }
     } else static if (isDynamicArray!T){
-        alias elemType = ElementType!T;
-        result.value = OFFSET_PREFIX ~ offset.encodeUnit.value;
-        offset += v[0].tuplelizeT.length*(v.length+1)*32;
         result.data ~= v.length.encodeUnit.value;
-        EncodingResult t;
+        EncodingResult arr;
+        auto offset = v.length * 32;
         foreach(e; v){
-            t ~= e.encodeUnit(offset);
+            auto t = e.encodeUnit;
+            if(t.value == ""){
+                // element is dynamic array
+                t.value ~= offset.encodeUnit.value;
+            }
+            arr ~= t;
+            offset += t.data.length/2;
         }
-        result.data ~= t.value ~ t.data;
+        result.data ~= arr.value ~ arr.data;
     }
     return result;
-}
-EncodingResult encodeUnit(T)(T v){
-    ulong DUMMY_OFFSET = 0;
-    return encodeUnit(v, DUMMY_OFFSET);
 }
 
 auto tuplelize(ARGS...)(ARGS argv){
@@ -127,21 +132,6 @@ in(t.length<=64)
     }
 }
 
-string cutOffsets(string encoded){
-    string cut = "";
-    while (encoded.length){
-        if(encoded[0] != OFFSET_PREFIX){
-            cut ~= encoded[0..64];
-            encoded = encoded[64..$];
-        }
-        else{
-            cut ~= encodeUnit(("0x"~encoded[1..65]).BigInt - cut.length/2).value;
-            encoded = encoded[65..$];
-        } 
-    }
-    return cut;
-}
-
 
 BigInt[] split32(string a){
     auto sliceCount = a.length/64;
@@ -176,6 +166,8 @@ void runTest(ARGS...)(ARGS argv){
 
 unittest{
     runTest(0x122);
-    runTest([1,2,3]);
+    runTest([10], [20], [30]);
+    runTest([[10, 20], [30]], [[1], [2], [3]]);
+    runTest([1,2,3], [4,5,6], [8,9]);
     runTest([[10, 20, 30], [40,50,60]],[90,100]);
 }
