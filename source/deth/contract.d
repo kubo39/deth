@@ -6,10 +6,10 @@ import std.stdio;
 import std.array: replace, join;
 import std.string: indexOf;
 import std.algorithm: canFind;
-import deth.util.evmcoder: toHex32String;
+import deth.util.abi: encode;
 import deth.rpcconnector;
 
-enum INTEGRAL = ["address"];
+enum INTEGRAL = ["address", "uint256", "int256", "int32"];
 
 class Contract(string buildPath, string bin){
     enum build = import(buildPath).parseJSON;
@@ -25,15 +25,16 @@ class Contract(string buildPath, string bin){
         this.address = null;
     }
 
-    mixin(allFunctions(abi));
     debug pragma(msg, allFunctions(abi));
+    mixin(allFunctions(abi));
+
     // Send traansaction for deploy contract
     void deploy(ARGS...)( ARGS argv){
         string from = null;
         if(address is null){
             Transaction tr;
             tr.from = (from is null?conn.eth_accounts[0]:from);
-            tr.data = deployedBytecode~ toHex32String(argv);
+            tr.data = deployedBytecode~ encode(argv);
             tr.gas = 6_721_975;
             auto trHash = conn.eth_sendTransaction(tr);
             address = conn
@@ -51,7 +52,7 @@ class Contract(string buildPath, string bin){
 
     void callMethod(string signiture, ARGS...)(ARGS argv){
         string hash = conn.web3_sha3(signiture)[0..10]; //takin first 4 bytes
-        string inputs = argv.toHex32String;
+        string inputs = argv.encode;
         Transaction tr;
         tr.data = hash ~ inputs;
         tr.from = conn.eth_accounts[0];
@@ -91,13 +92,12 @@ string getInputs(JSONValue params, bool typed = true){
     string[] inputs = [];
     foreach(param; params.array){
         try{
-
             if (param["type"].str.isIntegral){
                 
                 inputs ~= (typed?"BigInt ":"") ~ param["name"].str;
             } else if ("bool" == param["type"].str){
                 inputs ~= (typed?"bool ":"") ~ param["name"].str;
-            } else assert(0, "not supported tupe");
+            } 
         }
         catch(Exception e){
             continue;
@@ -119,6 +119,10 @@ string getSigniture(JSONValue abi){
 
 bool isIntegral(string typeName){
     return 
-        INTEGRAL.canFind(typeName) ||
-        typeName.indexOf("int") >=0;
+        INTEGRAL.canFind(typeName); 
 }
+
+bool isDynamicArray(string typeName){
+    return typeName[$-2..$] == "[]";
+}
+
