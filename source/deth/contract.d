@@ -1,6 +1,6 @@
 module deth.contract;
 
-import std: toHexString;
+import std: toHexString, to;
 import std.json;
 import std.bigint: BigInt;
 import std.stdio;
@@ -58,7 +58,7 @@ class Contract(string buildPath, string bin){
         keccak_256(
                 hashOfSign.ptr, 
                 hashOfSign.length, 
-                signiture.ptr, 
+                cast(ubyte*)signiture.ptr, 
                 signiture.length
         );
         string hash = hashOfSign[].toHexString.to!string; 
