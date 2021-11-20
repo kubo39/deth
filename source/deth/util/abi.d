@@ -25,15 +25,6 @@ string encode(ARGS...) (ARGS args_){
         
     }
     auto encoded = res.value ~ res.data; 
-    encoded = encoded;
-
-    encoded.writeln;
-    auto arr = encoded.split32;
-    writeln(ARGS.stringof, args_);
-    arr.length.iota.formatWriteln;
-    arr.formatWriteln;
-    arr.map!"a/32".formatWriteln;
-    writeln;
     return encoded; 
 }
 
