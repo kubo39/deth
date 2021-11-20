@@ -1,5 +1,6 @@
 module deth.contract;
 
+import std: toHexString;
 import std.json;
 import std.bigint: BigInt;
 import std.stdio;
@@ -8,6 +9,8 @@ import std.string: indexOf;
 import std.algorithm: canFind;
 import deth.util.abi: encode;
 import deth.rpcconnector;
+
+import keccak: keccak_256;
 
 enum INTEGRAL = ["address", "uint256", "int256", "int32"];
 
@@ -51,8 +54,16 @@ class Contract(string buildPath, string bin){
     }
 
     void callMethod(string signiture, ARGS...)(ARGS argv){
-        string hash = conn.web3_sha3(signiture)[0..10]; //takin first 4 bytes
+        ubyte[4] hashOfSign;
+        keccak_256(
+                hashOfSign.ptr, 
+                hashOfSign.length, 
+                signiture.ptr, 
+                signiture.length
+        );
+        string hash = hashOfSign[].toHexString.to!string; 
         string inputs = argv.encode;
+
         Transaction tr;
         tr.data = hash ~ inputs;
         tr.from = conn.eth_accounts[0];
