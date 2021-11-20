@@ -9,8 +9,6 @@ import std: map, join, fold;
 import std: array, iota;
 import deth.util.types: FixedBytes;
 
-enum OFFSET_PREFIX = '\0';
-
 string encode(ARGS...) (ARGS args_){
     EncodingResult res;
     auto args = args_.tuplelize;
