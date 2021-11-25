@@ -1,5 +1,5 @@
 name "deth"
-description "Etherium stuff for D"
+description "Ethereum stuff for D"
 authors "tynuk"
 copyright "Copyright © 2021, tynuk"
 license "MIT"
