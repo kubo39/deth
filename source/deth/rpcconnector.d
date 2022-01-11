@@ -1,18 +1,54 @@
 module deth.rpcconnector;
 
+import std.digest : toHexString;
 import std : Nullable;
 import std.json : JSONValue;
+import std.bigint;
+import std.conv : to;
+import std.range: chunks;
+import std.algorithm: map;
+import std.array: array;
+
 import rpc.protocol.json;
+
+import deth.util.types;
+
+
+enum BlockNumber {
+    EARLIEST = `earliest`,
+    LATEST = `latest`,
+    PENDING = `pending`
+};
 
 struct Transaction
 {
-    string from;
-    Nullable!string to;
-    Nullable!ulong gas;
-    Nullable!ulong gasPrice;
-    Nullable!ulong value;
-    string data = "0x";
-    Nullable!ulong nonce;
+    ubyte[20] from;
+    ubyte[20] to;
+    BigInt gas;
+    BigInt gasPrice;
+    BigInt value;
+    ubyte[] data = [];
+    ulong nonce;
+
+    invariant
+    {
+        assert(gas >= 0);
+        assert(gasPrice >= 0);
+        assert(value >= 0);
+    }
+
+    JSONValue toJSON()
+    {
+        string[string] result;
+        result["from"] = from.toHexString.ox;
+        result["to"] = to.toHexString.ox;
+        result["gas"] = gas.convTo!string.ox;
+        result["gasPrice"] = gasPrice.convTo!string.ox;
+        result["value"] = value.convTo!string.ox;
+        result["data"] = data.toHexString.ox;
+        result["nonce"] = nonce.to!string(16).ox;
+        return result.JSONValue;
+    }
 }
 
 interface IEthRPC
@@ -34,25 +70,48 @@ interface IEthRPC
     string eth_getStorageAt(string address, string pos, JSONValue blockNumber);
     string eth_getTransactionCount(string address, JSONValue blockNumber);
     string eth_getBlockTransactionCountByNumber(JSONValue blockNumber);
-    //string eth_getUncleCountByBlockHash(string);
     string eth_getUncleCountByBlockNumber(JSONValue blockNumber);
     string eth_getCode(string address, JSONValue blockNumber);
     string eth_sign(string address, string data);
-    string eth_signTransction(Transaction tx);
-    string eth_sendTransaction(Transaction tx);
+    string eth_signTransction(JSONValue tx);
+    string eth_sendTransaction(JSONValue tx);
     string eth_sendRawTransaction(string data);
-    string eth_call(Transaction tx, JSONValue blockNumber);
-    string eth_estimateGas(Transaction tx, JSONValue blockNumber);
-    // TODO make struct for block info 
+    string eth_call(JSONValue tx, JSONValue blockNumber);
     JSONValue eth_getBlockByHash(string blockHash, bool isFull);
     JSONValue eth_getBlockByNumber(JSONValue blockNumber, bool isFull);
     JSONValue eth_getTransactionByHash(string hash);
     JSONValue eth_getTransactionByBlockNumberAndIndex(JSONValue blockNumber, string index);
-
     JSONValue eth_getTransactionReceipt(string data);
 }
 
-alias RPCConnector = HttpJsonRpcAutoClient!IEthRPC;
+auto hexStringToUbytes(string t ){
+    return t[2..$].chunks(2).map!"a.parse!ubyte(16)".array;
+}
+
+mixin template BlockNumberToJSON(){
+    static if (is(BlockParameter==BlockNumber))
+        JSONValue _block = block;
+    static if (is(BigInt == BlockParameter))
+        JSONValue _block = block.convTo!string.ox;
+}
+
+class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
+{
+    this(string url)
+    {
+        super(url);
+    }
+    BigInt eth_getBalance(BlockParameter)(ubyte[20] address, BlockParameter block)
+    {
+        mixin BlockNumberToJSON;
+        return eth_getBalance(address.convTo!string.ox, block).BigInt;
+    }
+    ubyte[] eth_call(BlockParameter)(Transaction tx, BlockParameter block){
+        mixin BlockNumberToJSON;
+        eth_call(tx.toJSON, _block);
+    };
+
+}
 
 unittest
 {
