@@ -1,10 +1,11 @@
 module deth.rpcconnector;
 
-import std:Nullable;
-import std.json: JSONValue;
+import std : Nullable;
+import std.json : JSONValue;
 import rpc.protocol.json;
 
-struct Transaction {
+struct Transaction
+{
     string from;
     Nullable!string to;
     Nullable!ulong gas;
@@ -14,13 +15,14 @@ struct Transaction {
     Nullable!ulong nonce;
 }
 
-interface IEthRPC {
+interface IEthRPC
+{
     string web3_clientVersion();
     string web3_sha3(string data);
     string net_version();
     bool net_listening();
     int net_peerCount();
-    string  eth_protocolVersion();
+    string eth_protocolVersion();
     JSONValue eth_syncing();
     string eth_coinbase();
     bool eth_mining();
@@ -36,7 +38,7 @@ interface IEthRPC {
     string eth_getUncleCountByBlockNumber(JSONValue blockNumber);
     string eth_getCode(string address, JSONValue blockNumber);
     string eth_sign(string address, string data);
-    string eth_signTransction(Transaction tx); 
+    string eth_signTransction(Transaction tx);
     string eth_sendTransaction(Transaction tx);
     string eth_sendRawTransaction(string data);
     string eth_call(Transaction tx, JSONValue blockNumber);
@@ -45,21 +47,20 @@ interface IEthRPC {
     JSONValue eth_getBlockByHash(string blockHash, bool isFull);
     JSONValue eth_getBlockByNumber(JSONValue blockNumber, bool isFull);
     JSONValue eth_getTransactionByHash(string hash);
-    JSONValue eth_getTransactionByBlockNumberAndIndex(
-            JSONValue blockNumber, string index
-    );
+    JSONValue eth_getTransactionByBlockNumberAndIndex(JSONValue blockNumber, string index);
 
     JSONValue eth_getTransactionReceipt(string data);
 }
 
 alias RPCConnector = HttpJsonRpcAutoClient!IEthRPC;
 
-
-unittest{
+unittest
+{
     import std.stdio;
-    import std.process:environment;
-    auto host = environment.get("RPC_HOST", "127.0.0.1"); 
-    IEthRPC conn = new RPCConnector("http://"~host~":8545");
+    import std.process : environment;
+
+    auto host = environment.get("RPC_HOST", "127.0.0.1");
+    IEthRPC conn = new RPCConnector("http://" ~ host ~ ":8545");
     conn.web3_clientVersion.writeln;
     conn.web3_sha3("0x1234t66");
     conn.net_version.writeln;
