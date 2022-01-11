@@ -13,11 +13,23 @@ struct FixedBytes(ulong size)
     {
         return (cast(ubyte[]) value).toHexString.to!string;
     }
+
+    bytes toBytes()
+    {
+        return value[];
+    }
 }
 
 alias Address = ubyte[20];
 
 alias bytes = ubyte[];
+
+bytes hexToBytes(string s)
+{
+    import std : chunks, map, array;
+
+    return s.chunks(2).map!q{a.parse!ubyte(16)}.array;
+}
 
 auto convTo(To, From)(From f)
 {
@@ -39,8 +51,7 @@ auto convTo(To, From)(From f)
             import std.range : padLeft;
 
             auto hex = f.toHex.replace("_", "");
-            return hex.padLeft('0', hex.length + hex.length % 2).chunks(2)
-                .map!q{a.parse!ubyte(16)}.array;
+            return hex.padLeft('0', hex.length + hex.length % 2).to!string.hexToBytes;
         }
         static if (is(To == string))
         {
@@ -48,6 +59,14 @@ auto convTo(To, From)(From f)
 
             return f.toHex.replace("_", "");
 
+        }
+    }
+    static if (is(From == string))
+    {
+        static if (is(To == Address))
+        {
+            Address[] v = cast(Address[]) f.hexToBytes().padLeft(0, 20);
+            return v[0];
         }
     }
 }
@@ -67,4 +86,28 @@ unittest
 pure auto ox(T)(T t)
 {
     return `0x` ~ t[];
+}
+
+auto padLeft(bytes data, ubyte b, ulong count)
+{
+    if (count > data.length)
+    {
+        auto pad = new ubyte[count - data.length];
+        pad[] = b;
+        return pad ~ data;
+    }
+    else
+        return data;
+}
+
+auto padRight(bytes data, ubyte b, ulong count)
+{
+    if (count > data.length)
+    {
+        auto pad = new ubyte[count - data.length];
+        pad[] = b;
+        return data ~ pad;
+    }
+    else
+        return data;
 }

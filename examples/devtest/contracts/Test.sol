@@ -18,10 +18,8 @@ contract Test{
     
     function test(uint a, uint[][] memory b, string memory c) public view{
         
-        require(a == 10 &&
-                testB(b)&&
-                testC(c), 
-                "Test no passed Test no passed Test no passed Test no passed ");
+        require(a == 10&& testC(c) && testB(b)
+        ,"Test no passed Test no passed Test no passed Test no passed ");
     }
 
     function testB(uint[][] memory b) internal view returns(bool){

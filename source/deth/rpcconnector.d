@@ -8,7 +8,7 @@ import std.conv : to;
 import std.range: chunks;
 import std.algorithm: map;
 import std.array: array;
-
+import std.stdio;
 import rpc.protocol.json;
 
 import deth.util.types;
@@ -22,31 +22,38 @@ enum BlockNumber {
 
 struct Transaction
 {
-    ubyte[20] from;
-    ubyte[20] to;
-    BigInt gas;
-    BigInt gasPrice;
-    BigInt value;
-    ubyte[] data = [];
-    ulong nonce;
+    Nullable!Address from;
+    Nullable!Address to;
+    Nullable!BigInt gas;
+    Nullable!BigInt gasPrice;
+    Nullable!BigInt value;
+    Nullable!bytes data = [];
+    Nullable!ulong nonce;
 
     invariant
     {
-        assert(gas >= 0);
-        assert(gasPrice >= 0);
-        assert(value >= 0);
+        assert(gas.isNull||gas.get >= 0);
+        assert(gasPrice.isNull||gasPrice.get >= 0);
+        assert(value.isNull||value.get >= 0);
     }
 
     JSONValue toJSON()
     {
         string[string] result;
-        result["from"] = from.toHexString.ox;
-        result["to"] = to.toHexString.ox;
-        result["gas"] = gas.convTo!string.ox;
-        result["gasPrice"] = gasPrice.convTo!string.ox;
-        result["value"] = value.convTo!string.ox;
-        result["data"] = data.toHexString.ox;
-        result["nonce"] = nonce.to!string(16).ox;
+        if(!from.isNull)
+            result["from"] = from.get.toHexString.ox;
+        if(!to.isNull)
+            result["to"] = to.get.toHexString.ox;
+        if(!gas.isNull)
+            result["gas"] = gas.get.convTo!string.ox;
+        if(!gasPrice.isNull)
+            result["gasPrice"] = gasPrice.get.convTo!string.ox;
+        if(!value.isNull)
+            result["value"] = value.get.convTo!string.ox;
+        if(!data.isNull)
+            result["data"] = data.get.toHexString.ox;
+        if(!nonce.isNull)
+            result["nonce"] = nonce.get.to!string(16).ox;
         return result.JSONValue;
     }
 }
@@ -108,7 +115,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
     ubyte[] eth_call(BlockParameter)(Transaction tx, BlockParameter block){
         mixin BlockNumberToJSON;
-        eth_call(tx.toJSON, _block);
+        return super.eth_call(tx.toJSON, _block).hexToBytes;
     };
 
 }
