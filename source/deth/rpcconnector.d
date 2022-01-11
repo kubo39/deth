@@ -98,8 +98,10 @@ auto hexStringToUbytes(string t ){
 mixin template BlockNumberToJSON(){
     static if (is(BlockParameter==BlockNumber))
         JSONValue _block = block;
-    static if (is(BigInt == BlockParameter))
+    else static if (is(BigInt == BlockParameter))
         JSONValue _block = block.convTo!string.ox;
+    else static assert(0, "BlockParameter not support type " ~ stringof(BlockParameter));
+
 }
 
 class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
@@ -118,6 +120,10 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return super.eth_call(tx.toJSON, _block).hexToBytes;
     };
 
+    ulong eth_getTransactionCount(BlockParameter)(Address address, BlockParameter block){
+        mixin BlockNumberToJSON;
+        return eth_getTransactionCount(address.toHexString.ox, _block)[2..$].parse!ulong(16);
+    }
 }
 
 unittest
