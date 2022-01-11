@@ -93,7 +93,9 @@ EncodingResult encodeUnit(T)(T v)
             arr ~= t;
             offset += t.data.length;
         }
-        auto padLen = arr.value.length + (SS - arr.value.length % SS);
+        auto padLen = arr.value.length;
+        if (arr.value.length % SS)
+            padLen += (SS - arr.value.length % SS);
         result.data ~= arr.value.padRight(0, padLen).array ~ arr.data;
     }
     else static if (is(Unconst!T == char) || is(Unconst!T == ubyte))
