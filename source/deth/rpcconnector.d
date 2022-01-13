@@ -123,6 +123,33 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         mixin BlockNumberToJSON;
         return eth_getTransactionCount(address.toHexString.ox, _block)[2..$].parse!ulong(16);
     }
+
+    TransactionReceipt getTransactionReceipt(Hash h){
+        JSONValue a = eth_getTransactionReceipt(h.convTo!string.ox);
+        TransactionReceipt tx;
+        tx.transactionIndex = a[`transactionIndex`].str[2..$].to!ulong(16);
+        tx.from = a[`from`].str[2..$].convTo!Address;
+        tx.blockHash = a[`from`].str[2..$].convTo!Hash;
+        tx.blockNumber= a[`blockNumber`].str[2..$].to!ulong(16);
+        if(!a[`to`].isNull)
+            tx.to = a[`to`].str[2..$].convTo!Address;
+        tx.cumulativeGasUsed = a[`cumulativeGasUsed`].str.BigInt;
+        tx.gasUsed= a[`gasUsed`].str.BigInt;
+        if(!a[`contractAddress`].isNull)
+            tx.to = a[`contractAddress`].str[2..$].convTo!Address;
+        tx.logsBloom = a[`logsBloom`].str[2..$].hexToBytes;
+        tx.logs = new Log[a[`logs`].array.length];
+        foreach(i, log; a[`logs`].array){
+            tx.logs[i].removed  = log[`removed`].boolean;
+            tx.logs[i].address = log[`address`].str[2..$].convTo!Address;
+            tx.logs[i].data = log[`data`].str[2..$].hexToBytes;
+            tx.logs[i].topics = [];
+            foreach (topic; log[`topics`].array){
+                tx.logs[i].topics ~= topic.str[2..$].convTo!Hash;
+            }
+        }
+        return tx;
+    }
 }
 
 unittest
@@ -163,18 +190,13 @@ struct TransactionReceipt{
     Nullable!Address to;// DATA, 20 Bytes - address of the receiver. null when its a contract creation transaction.
     BigInt cumulativeGasUsed ;// QUANTITY - The total amount of gas used when this transaction was executed in the block.
     BigInt gasUsed ;// QUANTITY - The amount of gas used by this specific transaction alone.
-    Address contractAddress ;// DATA, 20 Bytes - The contract address created, if the transaction was a contract creation, otherwise null.
+    Nullable!Address contractAddress ;// DATA, 20 Bytes - The contract address created, if the transaction was a contract creation, otherwise null.
     Log[] logs;// Array - Array of log objects, which this transaction generated.
-    ubyte logsBloom;// DATA, 256 Bytes - Bloom filter for light clients to quickly retrieve related logs.
+    bytes logsBloom;// DATA, 256 Bytes - Bloom filter for light clients to quickly retrieve related logs.a
 }
 
 struct Log{
     bool removed;
-    Nullable!ulong logIndex;
-    Nullable!ulong transactionIndex; //  QUANTITY - integer of the transactions index position log was created from. null when its pending log.
-    Nullable!Hash transactionHash; //  DATA, 32 Bytes - hash of the transactions this log was created from. null when its pending log.
-    Nullable!Hash blockHash; //  DATA, 32 Bytes - hash of the block where this log was in. null when its pending. null when its pending log.
-    Nullable!ulong blockNumber; //  QUANTITY - the block number where this log was in. null when its pending. null when its pending log.
     Address address; //  DATA, 20 Bytes - address from which this log originated.
     bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
     Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)

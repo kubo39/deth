@@ -40,6 +40,13 @@ auto convTo(To, From)(From f)
             return (cast(bytes) f).toHexString.to!string;
         }
     }
+    static if (is(From == Hash))
+    {
+        static if (is(To == string))
+        {
+            return (cast(bytes) f).toHexString.to!string;
+        }
+    }
     // BigInt Part
     import std.bigint : BigInt, toHex;
 

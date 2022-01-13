@@ -19,7 +19,7 @@ class Contract(string buildPath, string bin)
 {
     enum build = import(buildPath).parseJSON;
     enum abi = build;
-    private string address;
+    Address address;
     private RPCConnector conn;
 
     static immutable string deployedBytecode = bin;
@@ -37,25 +37,17 @@ class Contract(string buildPath, string bin)
     void deploy(ARGS...)(ARGS argv)
     {
         string from = null;
-        if (address is null)
-        {
-            Transaction tr;
-            tr.from = (from is null ? conn.eth_accounts[0] : from)[2 .. $].convTo!Address;
-            tr.data = deployedBytecode[2 .. $].hexToBytes ~ encode(argv);
-            tr.gas = 6_721_975.BigInt;
-            auto trHash = conn.eth_sendTransaction(tr.toJSON);
-            address = conn.eth_getTransactionReceipt(trHash)["contractAddress"].str;
-
-            if (address is null)
-                throw new Exception("null address");
-        }
-        else
-            throw new Exception("Contract alredy deployed");
+        Transaction tr;
+        tr.from = (from is null ? conn.eth_accounts[0] : from)[2 .. $].convTo!Address;
+        tr.data = deployedBytecode[2 .. $].hexToBytes ~ encode(argv);
+        tr.gas = 6_721_975.BigInt;
+        auto trHash = conn.eth_sendTransaction(tr.toJSON)[2 .. $].convTo!Hash;
+        address = conn.getTransactionReceipt(trHash).contractAddress.get;
     }
 
     override string toString()
     {
-        return " Contract on " ~ address;
+        return " Contract on 0x" ~ address.convTo!string;
     }
 
     auto callMethod(string signiture, ARGS...)(ARGS argv)
@@ -68,7 +60,7 @@ class Contract(string buildPath, string bin)
         Transaction tr;
         tr.data = hashOfSign[] ~ inputs;
         tr.from = conn.eth_accounts[0][2 .. $].convTo!Address;
-        tr.to = this.address[2 .. $].convTo!Address;
+        tr.to = this.address;
         return conn.call(tr, BlockNumber.LATEST);
     }
 }
@@ -77,11 +69,11 @@ string parseFunction(JSONValue abi)
 {
     return (q{
             void $funcName ( $inputs ) {
-                $body
+            $body
             }
-        }.replace("$funcName", abi["name"].str).replace("$inputs", abi["inputs"].getInputs)
-            .replace("$body", q{callMethod!"$signature"($inputsValue);}).replace("$signature",
-                abi.getSigniture).replace("$inputsValue", abi["inputs"].getInputs(false)));
+            }.replace("$funcName", abi["name"].str).replace("$inputs",
+            abi["inputs"].getInputs).replace("$body", q{callMethod!"$signature"($inputsValue);}).replace("$signature",
+            abi.getSigniture).replace("$inputsValue", abi["inputs"].getInputs(false)));
 }
 
 string allFunctions(JSONValue abi)
@@ -91,7 +83,7 @@ string allFunctions(JSONValue abi)
     {
         if (func["type"].str == "function")
         {
-            retVal ~= func.parseFunction ~ "\n\n";
+            retVal ~= func.parseFunction ~ "\n";
         }
     }
     return retVal;
