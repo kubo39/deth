@@ -101,7 +101,6 @@ mixin template BlockNumberToJSON(){
     else static if (is(BigInt == BlockParameter))
         JSONValue _block = block.convTo!string.ox;
     else static assert(0, "BlockParameter not support type " ~ stringof(BlockParameter));
-
 }
 
 class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
@@ -110,17 +109,17 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     {
         super(url);
     }
-    BigInt eth_getBalance(BlockParameter)(ubyte[20] address, BlockParameter block)
+    BigInt getBalance(BlockParameter)(ubyte[20] address, BlockParameter block = BlockNumber.LATEST)
     {
         mixin BlockNumberToJSON;
-        return eth_getBalance(address.convTo!string.ox, block).BigInt;
+        return eth_getBalance(address.convTo!string.ox, _block).BigInt;
     }
-    ubyte[] eth_call(BlockParameter)(Transaction tx, BlockParameter block){
+    ubyte[] call(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST){
         mixin BlockNumberToJSON;
-        return super.eth_call(tx.toJSON, _block).hexToBytes;
-    };
+        return super.eth_call(tx.toJSON, _block)[2..$].hexToBytes;
+    }
 
-    ulong eth_getTransactionCount(BlockParameter)(Address address, BlockParameter block){
+    ulong getTransactionCount(BlockParameter)(Address address, BlockParameter block = BlockNumber.LATEST){
         mixin BlockNumberToJSON;
         return eth_getTransactionCount(address.toHexString.ox, _block)[2..$].parse!ulong(16);
     }
@@ -132,7 +131,7 @@ unittest
     import std.process : environment;
 
     auto host = environment.get("RPC_HOST", "127.0.0.1");
-    IEthRPC conn = new RPCConnector("http://" ~ host ~ ":8545");
+    auto conn = new RPCConnector("http://" ~ host ~ ":8545");
     conn.web3_clientVersion.writeln;
     conn.web3_sha3("0x1234t66");
     conn.net_version.writeln;
@@ -146,10 +145,37 @@ unittest
     auto accounts = conn.eth_accounts;
     accounts.writeln;
     conn.eth_blockNumber.writeln;
+    conn.getBalance("123".convTo!Address).writeln;
     conn.eth_getBalance(accounts[0], "latest".JSONValue).writeln;
     conn.eth_getBalance(accounts[0], 0.JSONValue).writeln;
     // conn. get storage at;
     conn.eth_getTransactionCount(accounts[0], "latest".JSONValue).writeln;
     conn.eth_getBlockTransactionCountByNumber("latest".JSONValue).writeln;
     conn.eth_sign(accounts[0], "0xaa1230fgD").writeln;
+}
+
+struct TransactionReceipt{
+    Hash transactionHash ;// DATA, 32 Bytes - hash of the transaction.
+    ulong transactionIndex;// QUANTITY - integer of the transactions index position in the block.
+    Hash blockHash;// DATA, 32 Bytes - hash of the block where this transaction was in.
+    ulong blockNumber;// QUANTITY - block number where this transaction was in.
+    Address from;// DATA, 20 Bytes - address of the sender.
+    Nullable!Address to;// DATA, 20 Bytes - address of the receiver. null when its a contract creation transaction.
+    BigInt cumulativeGasUsed ;// QUANTITY - The total amount of gas used when this transaction was executed in the block.
+    BigInt gasUsed ;// QUANTITY - The amount of gas used by this specific transaction alone.
+    Address contractAddress ;// DATA, 20 Bytes - The contract address created, if the transaction was a contract creation, otherwise null.
+    Log[] logs;// Array - Array of log objects, which this transaction generated.
+    ubyte logsBloom;// DATA, 256 Bytes - Bloom filter for light clients to quickly retrieve related logs.
+}
+
+struct Log{
+    bool removed;
+    Nullable!ulong logIndex;
+    Nullable!ulong transactionIndex; //  QUANTITY - integer of the transactions index position log was created from. null when its pending log.
+    Nullable!Hash transactionHash; //  DATA, 32 Bytes - hash of the transactions this log was created from. null when its pending log.
+    Nullable!Hash blockHash; //  DATA, 32 Bytes - hash of the block where this log was in. null when its pending. null when its pending log.
+    Nullable!ulong blockNumber; //  QUANTITY - the block number where this log was in. null when its pending. null when its pending log.
+    Address address; //  DATA, 20 Bytes - address from which this log originated.
+    bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
+    Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)
 }

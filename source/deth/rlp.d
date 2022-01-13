@@ -60,9 +60,11 @@ unittest
 
 unittest
 {
+    "/ / / / RLP \\ \\ \\  \\ ".writeln;
     rlpEncode([cast(bytes) "cat", cast(bytes) "dog"]).map!q{a.to!string(16)}.join.writeln;
     rlpEncode([
         cast(bytes) "ccatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatat",
         cast(bytes) "dog"
     ]).map!"a.to!string(16)".join.writeln;
+    rlpEncode([cast(bytes) "cat", cast(bytes) ""]).map!q{a.to!string(16)}.join.writeln;
 }

@@ -21,7 +21,7 @@ struct FixedBytes(ulong size)
 }
 
 alias Address = ubyte[20];
-
+alias Hash = ubyte[32];
 alias bytes = ubyte[];
 
 bytes hexToBytes(string s)
@@ -66,6 +66,11 @@ auto convTo(To, From)(From f)
         static if (is(To == Address))
         {
             Address[] v = cast(Address[]) f.hexToBytes().padLeft(0, 20);
+            return v[0];
+        }
+        static if (is(To == Hash))
+        {
+            Hash[] v = cast(Hash[]) f.hexToBytes().padLeft(0, 32);
             return v[0];
         }
     }

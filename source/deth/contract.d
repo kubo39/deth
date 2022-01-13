@@ -58,7 +58,7 @@ class Contract(string buildPath, string bin)
         return " Contract on " ~ address;
     }
 
-    void callMethod(string signiture, ARGS...)(ARGS argv)
+    auto callMethod(string signiture, ARGS...)(ARGS argv)
     {
         ubyte[4] hashOfSign;
         keccak_256(hashOfSign.ptr, hashOfSign.length,
@@ -69,7 +69,7 @@ class Contract(string buildPath, string bin)
         tr.data = hashOfSign[] ~ inputs;
         tr.from = conn.eth_accounts[0][2 .. $].convTo!Address;
         tr.to = this.address[2 .. $].convTo!Address;
-        conn.eth_call(tr, BlockNumber.LATEST).writeln;
+        return conn.call(tr, BlockNumber.LATEST);
     }
 }
 
