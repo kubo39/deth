@@ -7,10 +7,11 @@ import std.bigint;
 import std.conv : to;
 import std.range: chunks;
 import std.algorithm: map;
-import std.array: array;
+import std.array: array, join;
 import std.stdio;
 import rpc.protocol.json;
-
+import std.array: replace;
+import deth.rlp: rlpEncode, cutBytes;
 import deth.util.types;
 
 
@@ -55,6 +56,28 @@ struct Transaction
         if(!nonce.isNull)
             result["nonce"] = nonce.get.to!string(16).ox;
         return result.JSONValue;
+    }
+
+    bytes serialize(){
+        bytes[] encoded = [];
+        if(nonce.isNull)
+            encoded ~= [];
+        else
+            encoded ~= cutBytes(cast(bytes)[nonce.get]);
+
+
+        static immutable code = q{
+            if(field.isNull)
+                encoded ~= [];
+            else
+                encoded ~= gasPrice.get.convTo!bytes;
+        };
+        static foreach(field; ["gasPrice", "gas", "to", "value"]){
+            mixin(code.replace("field", field));
+        }
+        encoded ~= data.get;
+        encoded.writeln;
+        return encoded.rlpEncode;
     }
 }
 
@@ -200,4 +223,16 @@ struct Log{
     Address address; //  DATA, 20 Bytes - address from which this log originated.
     bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
     Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)
+}
+
+unittest{
+    writeln( "tx serialization");
+    Transaction tx;
+    tx.nonce = 10;
+    tx.to = "0x123".convTo!Address;
+    tx.value = "0x123".BigInt;
+    tx.gas = "0x123".BigInt;
+    tx.gasPrice= "0x123".BigInt;
+    tx.data = [1,2,3,4];
+    tx.serialize.toHexString.writeln;
 }

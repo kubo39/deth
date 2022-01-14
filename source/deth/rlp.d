@@ -29,7 +29,7 @@ bytes lenToRlp(ulong l, ubyte o)
     }
     else
     {
-        bytes binL = l.nativeToBigEndian[].cutBytes;
+        bytes binL = l.nativeToBigEndian.cutBytes;
         ubyte lenOfLen = cast(ubyte)(binL.length + o + 55);
         return lenOfLen ~ binL;
     }
@@ -61,10 +61,16 @@ unittest
 unittest
 {
     "/ / / / RLP \\ \\ \\  \\ ".writeln;
-    rlpEncode([cast(bytes) "cat", cast(bytes) "dog"]).map!q{a.to!string(16)}.join.writeln;
+    rlpEncode([
+        cast(bytes) "cat", cast(bytes) "dog", cast(bytes) "dogg\0y",
+        cast(bytes) "man"
+    ]).toHexString.writeln;
     rlpEncode([
         cast(bytes) "ccatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatat",
         cast(bytes) "dog"
-    ]).map!"a.to!string(16)".join.writeln;
-    rlpEncode([cast(bytes) "cat", cast(bytes) ""]).map!q{a.to!string(16)}.join.writeln;
+    ]).toHexString.writeln;
+    rlpEncode([cast(bytes) "cat", cast(bytes) ""]).toHexString.writeln;
+    bytes[] d = cast(bytes[])[[1], [2, 3, 4], [123, 255]];
+    d.writeln;
+    rlpEncode(d).toHexString.writeln;
 }
