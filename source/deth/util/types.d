@@ -40,7 +40,7 @@ unittest
     assert("0x123".hexToBytes == [0x1, 0x23]);
 }
 
-auto convTo(To, From)(From f)
+To convTo(To, From)(From f)
 {
     static if (is(From == Address))
     {
@@ -110,6 +110,14 @@ unittest
 
     Address addr;
     assert(addr.convTo!string == join(20.iota.array.map!q{"00"}));
+
+    enum T
+    {
+        A,
+        B
+    }
+
+    assert(!__traits(compiles, addr.convTo!T), `shouldn't compile with undefined conv pair`);
 }
 
 pure auto ox(T)(T t)
