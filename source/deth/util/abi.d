@@ -9,7 +9,7 @@ import std : map, join, fold;
 import std : array, iota;
 import deth.util.types;
 
-// SLOT SIZE 32 bytes
+/// SLOT SIZE 32 bytes
 enum SS = 32;
 
 bytes encode(ARGS...)(ARGS args_)
@@ -34,8 +34,8 @@ bytes encode(ARGS...)(ARGS args_)
 
 struct EncodingResult
 {
-    bytes value = []; // static encoded
-    bytes data = []; // dynamic encoded
+    bytes value = []; /// static encoded
+    bytes data = []; /// dynamic encoded
 
     EncodingResult opOpAssign(string op)(EncodingResult a)
     {
