@@ -58,26 +58,26 @@ struct Transaction
         return result.JSONValue;
     }
 
-    bytes serialize(){
+    bytes[] serialize(){
         bytes[] encoded = [];
         if(nonce.isNull)
-            encoded ~= [];
+            encoded ~= [[]];
         else
             encoded ~= cutBytes(cast(bytes)[nonce.get]);
 
 
         static immutable code = q{
             if(field.isNull)
-                encoded ~= [];
+                encoded ~= [[]];
             else
-                encoded ~= gasPrice.get.convTo!bytes;
+                encoded ~= field.get.convTo!bytes;
         };
         static foreach(field; ["gasPrice", "gas", "to", "value"]){
             mixin(code.replace("field", field));
         }
         encoded ~= data.get;
         encoded.writeln;
-        return encoded.rlpEncode;
+        return encoded;
     }
 }
 
@@ -144,7 +144,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     ulong getTransactionCount(BlockParameter)(Address address, BlockParameter block = BlockNumber.LATEST){
         mixin BlockNumberToJSON;
-        return eth_getTransactionCount(address.toHexString.ox, _block)[2..$].parse!ulong(16);
+        return eth_getTransactionCount(address.toHexString.ox, _block)[2..$].to!ulong(16);
     }
 
     TransactionReceipt getTransactionReceipt(Hash h){
@@ -226,13 +226,31 @@ struct Log{
 }
 
 unittest{
+    auto conn = new RPCConnector("http://35.161.73.158:8545");
     writeln( "tx serialization");
+    auto pkValue= "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
+    import secp256k1: secp256k1;
+    auto pk = new secp256k1(pkValue);
     Transaction tx;
-    tx.nonce = 10;
-    tx.to = "0x123".convTo!Address;
+    tx.nonce = conn.getTransactionCount(pk.address);
+    tx.to = "0x0123".convTo!Address;
+    tx.to.writeln;
     tx.value = "0x123".BigInt;
-    tx.gas = "0x123".BigInt;
-    tx.gasPrice= "0x123".BigInt;
-    tx.data = [1,2,3,4];
-    tx.serialize.toHexString.writeln;
+    tx.gas = "50000".BigInt;
+    tx.gasPrice = "10000".BigInt;
+    tx.data = [];
+    bytes rlpTx = tx.serialize.rlpEncode;
+    import keccak: keccak_256;
+    Hash hash;
+    keccak_256(hash.ptr, hash.length, rlpTx.ptr, rlpTx.length);
+    pk.address.convTo!string.ox.writeln(" --addr");
+    auto signature = pk.sign(hash);
+    import deth.util.types;
+    ubyte v = cast(ubyte)(27 + signature.recid);
+    v.writeln(" --v");
+    bytes[] t = tx.serialize~ [v]~signature.r ~ signature.s;
+    auto rawTx = rlpEncode(t).toHexString.ox;
+    rawTx.writeln(" -- rawTx 0");
+
+    conn.eth_sendRawTransaction(rawTx);
 }

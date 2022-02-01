@@ -39,12 +39,20 @@ auto convTo(To, From)(From f)
         {
             return (cast(bytes) f).toHexString.to!string;
         }
+        static if (is(To == bytes))
+        {
+            return (cast(bytes) f.dup);
+        }
     }
     static if (is(From == Hash))
     {
         static if (is(To == string))
         {
             return (cast(bytes) f).toHexString.to!string;
+        }
+        static if (is(To == bytes))
+        {
+            return f[];
         }
     }
     // BigInt Part
@@ -122,4 +130,15 @@ auto padRight(bytes data, ubyte b, ulong count)
     }
     else
         return data;
+}
+
+unittest
+{
+    import std;
+
+    "0X TEST:".writeln;
+    assert("0x123" == `123`.ox);
+    char[4] t;
+    t[] = 'a';
+    assert(t.ox == "0xaaaa");
 }
