@@ -26,9 +26,18 @@ alias bytes = ubyte[];
 
 bytes hexToBytes(string s)
 {
-    import std : chunks, map, array;
+    import std : chunks, map, array, startsWith;
+    import std.range : padLeft;
 
-    return s.chunks(2).map!q{a.parse!ubyte(16)}.array;
+    if (s.startsWith(`0x`))
+        s = s[2 .. $];
+
+    return s.padLeft('0', s.length + s.length % 2).chunks(2).map!q{a.parse!ubyte(16)}.array;
+}
+
+unittest
+{
+    assert("0x123".hexToBytes == [0x1, 0x23]);
 }
 
 auto convTo(To, From)(From f)
