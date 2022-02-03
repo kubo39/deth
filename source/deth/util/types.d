@@ -97,6 +97,10 @@ To convTo(To, From)(From f)
             Hash[] v = cast(Hash[]) f.hexToBytes().padLeft(0, 32);
             return v[0];
         }
+        static if (is(To == bytes))
+        {
+            return f.hexToBytes;
+        }
     }
 }
 
