@@ -5,21 +5,22 @@ import std : Nullable;
 import std.json : JSONValue;
 import std.bigint;
 import std.conv : to;
-import std.range: chunks;
-import std.algorithm: map;
-import std.array: array, join;
+import std.range : chunks;
+import std.algorithm : map;
+import std.array : array, join;
 import std.stdio;
 import rpc.protocol.json;
-import std.array: replace;
-import deth.rlp: rlpEncode, cutBytes;
+import std.array : replace;
+import deth.rlp : rlpEncode, cutBytes;
 import deth.util.types;
+import secp256k1 : secp256k1;
 
-
-enum BlockNumber {
+enum BlockNumber
+{
     EARLIEST = `earliest`,
     LATEST = `latest`,
     PENDING = `pending`
-};
+}
 
 struct Transaction
 {
@@ -33,38 +34,38 @@ struct Transaction
 
     invariant
     {
-        assert(gas.isNull||gas.get >= 0);
-        assert(gasPrice.isNull||gasPrice.get >= 0);
-        assert(value.isNull||value.get >= 0);
+        assert(gas.isNull || gas.get >= 0);
+        assert(gasPrice.isNull || gasPrice.get >= 0);
+        assert(value.isNull || value.get >= 0);
     }
 
     JSONValue toJSON()
     {
         string[string] result;
-        if(!from.isNull)
+        if (!from.isNull)
             result["from"] = from.get.toHexString.ox;
-        if(!to.isNull)
+        if (!to.isNull)
             result["to"] = to.get.toHexString.ox;
-        if(!gas.isNull)
+        if (!gas.isNull)
             result["gas"] = gas.get.convTo!string.ox;
-        if(!gasPrice.isNull)
+        if (!gasPrice.isNull)
             result["gasPrice"] = gasPrice.get.convTo!string.ox;
-        if(!value.isNull)
+        if (!value.isNull)
             result["value"] = value.get.convTo!string.ox;
-        if(!data.isNull)
+        if (!data.isNull)
             result["data"] = data.get.toHexString.ox;
-        if(!nonce.isNull)
+        if (!nonce.isNull)
             result["nonce"] = nonce.get.to!string(16).ox;
         return result.JSONValue;
     }
 
-    bytes[] serialize(){
+    bytes[] serialize()
+    {
         bytes[] encoded = [];
-        if(nonce.isNull)
+        if (nonce.isNull)
             encoded ~= [[]];
         else
             encoded ~= cutBytes(cast(bytes)[nonce.get]);
-
 
         static immutable code = q{
             if(field.isNull)
@@ -72,16 +73,16 @@ struct Transaction
             else
                 encoded ~= field.get.convTo!bytes;
         };
-        static foreach(field; ["gasPrice", "gas", "to", "value"]){
+        static foreach (field; ["gasPrice", "gas", "to", "value"])
+        {
             mixin(code.replace("field", field));
         }
         encoded ~= data.get;
-        encoded.writeln;
         return encoded;
     }
 }
 
-interface IEthRPC
+private interface IEthRPC
 {
     string web3_clientVersion();
     string web3_sha3(string data);
@@ -114,64 +115,90 @@ interface IEthRPC
     JSONValue eth_getTransactionReceipt(string data);
 }
 
-auto hexStringToUbytes(string t ){
-    return t[2..$].chunks(2).map!"a.parse!ubyte(16)".array;
-}
-
-mixin template BlockNumberToJSON(){
-    static if (is(BlockParameter==BlockNumber))
+private mixin template BlockNumberToJSON(alias block)
+{
+    static if (is(BlockParameter == BlockNumber))
         JSONValue _block = block;
     else static if (is(BigInt == BlockParameter))
         JSONValue _block = block.convTo!string.ox;
-    else static assert(0, "BlockParameter not support type " ~ stringof(BlockParameter));
+    else
+        static assert(0, "BlockParameter not support type " ~ stringof(BlockParameter));
 }
 
+/// Connector to Ethereum rpc endpoint
 class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 {
+    /// Private keys stored by connector
+    secp256k1[Address] wallet;
+
     this(string url)
     {
         super(url);
     }
+
     BigInt getBalance(BlockParameter)(ubyte[20] address, BlockParameter block = BlockNumber.LATEST)
     {
-        mixin BlockNumberToJSON;
+        mixin BlockNumberToJSON!block;
         return eth_getBalance(address.convTo!string.ox, _block).BigInt;
     }
-    ubyte[] call(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST){
-        mixin BlockNumberToJSON;
-        return super.eth_call(tx.toJSON, _block)[2..$].hexToBytes;
+
+    ubyte[] call(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST)
+    {
+        mixin BlockNumberToJSON!block;
+        return super.eth_call(tx.toJSON, _block)[2 .. $].hexToBytes;
     }
 
-    ulong getTransactionCount(BlockParameter)(Address address, BlockParameter block = BlockNumber.LATEST){
-        mixin BlockNumberToJSON;
-        return eth_getTransactionCount(address.toHexString.ox, _block)[2..$].to!ulong(16);
+    ulong getTransactionCount(BlockParameter)(Address address,
+            BlockParameter block = BlockNumber.LATEST)
+    {
+        mixin BlockNumberToJSON!block;
+        return eth_getTransactionCount(address.toHexString.ox, _block)[2 .. $].to!ulong(16);
     }
 
-    TransactionReceipt getTransactionReceipt(Hash h){
+    Nullable!TransactionReceipt getTransactionReceipt(Hash h)
+    {
         JSONValue a = eth_getTransactionReceipt(h.convTo!string.ox);
-        TransactionReceipt tx;
-        tx.transactionIndex = a[`transactionIndex`].str[2..$].to!ulong(16);
-        tx.from = a[`from`].str[2..$].convTo!Address;
-        tx.blockHash = a[`from`].str[2..$].convTo!Hash;
-        tx.blockNumber= a[`blockNumber`].str[2..$].to!ulong(16);
-        if(!a[`to`].isNull)
-            tx.to = a[`to`].str[2..$].convTo!Address;
-        tx.cumulativeGasUsed = a[`cumulativeGasUsed`].str.BigInt;
-        tx.gasUsed= a[`gasUsed`].str.BigInt;
-        if(!a[`contractAddress`].isNull)
-            tx.to = a[`contractAddress`].str[2..$].convTo!Address;
-        tx.logsBloom = a[`logsBloom`].str[2..$].hexToBytes;
-        tx.logs = new Log[a[`logs`].array.length];
-        foreach(i, log; a[`logs`].array){
-            tx.logs[i].removed  = log[`removed`].boolean;
-            tx.logs[i].address = log[`address`].str[2..$].convTo!Address;
-            tx.logs[i].data = log[`data`].str[2..$].hexToBytes;
-            tx.logs[i].topics = [];
-            foreach (topic; log[`topics`].array){
-                tx.logs[i].topics ~= topic.str[2..$].convTo!Hash;
-            }
+
+        if (a.isNull)
+        {
+            Nullable!TransactionReceipt tx;
+            return tx;
         }
-        return tx;
+
+        return Nullable!TransactionReceipt(a.convTo!TransactionReceipt);
+    }
+
+    auto getTransaction(Hash txHash)
+    {
+        return eth_getTransactionByHash(txHash.convTo!string.ox).convTo!TransactionInfo;
+    }
+
+    Hash sendRawTransaction(Transaction tx)
+    {
+        import keccak : keccak_256;
+        import deth.util.types;
+
+        bytes rlpTx = tx.serialize.rlpEncode;
+        Hash hash;
+        keccak_256(hash.ptr, hash.length, rlpTx.ptr, rlpTx.length);
+        auto signature = wallet[tx.from.get].sign(hash);
+
+        ubyte v = cast(ubyte)(27 + signature.recid);
+        v.writeln;
+
+        auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s).toHexString.ox;
+
+        return eth_sendRawTransaction(rawTx).convTo!Hash;
+    }
+
+    Hash sendTransaction(Transaction tx)
+    {
+        JSONValue jtx = [
+            "from": tx.from.get.convTo!string.ox,
+            "value": tx.value.get.convTo!string.ox,
+            "to": tx.to.get.convTo!string.ox
+        ];
+        return eth_sendTransaction(jtx).convTo!Hash;
     }
 }
 
@@ -198,59 +225,28 @@ unittest
     conn.getBalance("123".convTo!Address).writeln;
     conn.eth_getBalance(accounts[0], "latest".JSONValue).writeln;
     conn.eth_getBalance(accounts[0], 0.JSONValue).writeln;
-    // conn. get storage at;
     conn.eth_getTransactionCount(accounts[0], "latest".JSONValue).writeln;
     conn.eth_getBlockTransactionCountByNumber("latest".JSONValue).writeln;
     conn.eth_sign(accounts[0], "0xaa1230fgD").writeln;
+
 }
 
-struct TransactionReceipt{
-    Hash transactionHash ;// DATA, 32 Bytes - hash of the transaction.
-    ulong transactionIndex;// QUANTITY - integer of the transactions index position in the block.
-    Hash blockHash;// DATA, 32 Bytes - hash of the block where this transaction was in.
-    ulong blockNumber;// QUANTITY - block number where this transaction was in.
-    Address from;// DATA, 20 Bytes - address of the sender.
-    Nullable!Address to;// DATA, 20 Bytes - address of the receiver. null when its a contract creation transaction.
-    BigInt cumulativeGasUsed ;// QUANTITY - The total amount of gas used when this transaction was executed in the block.
-    BigInt gasUsed ;// QUANTITY - The amount of gas used by this specific transaction alone.
-    Nullable!Address contractAddress ;// DATA, 20 Bytes - The contract address created, if the transaction was a contract creation, otherwise null.
-    Log[] logs;// Array - Array of log objects, which this transaction generated.
-    bytes logsBloom;// DATA, 256 Bytes - Bloom filter for light clients to quickly retrieve related logs.a
-}
-
-struct Log{
-    bool removed;
-    Address address; //  DATA, 20 Bytes - address from which this log originated.
-    bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
-    Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)
-}
-
-unittest{
+unittest
+{
     auto conn = new RPCConnector("http://35.161.73.158:8545");
-    writeln( "tx serialization");
-    auto pkValue= "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
-    import secp256k1: secp256k1;
+    writeln("tx serialization");
+    auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
     auto pk = new secp256k1(pkValue);
-    Transaction tx;
-    tx.nonce = conn.getTransactionCount(pk.address);
-    tx.to = "0x0123".convTo!Address;
-    tx.to.writeln;
-    tx.value = "0x123".BigInt;
-    tx.gas = "50000".BigInt;
-    tx.gasPrice = "10000".BigInt;
-    tx.data = [];
-    bytes rlpTx = tx.serialize.rlpEncode;
-    import keccak: keccak_256;
-    Hash hash;
-    keccak_256(hash.ptr, hash.length, rlpTx.ptr, rlpTx.length);
-    pk.address.convTo!string.ox.writeln(" --addr");
-    auto signature = pk.sign(hash);
-    import deth.util.types;
-    ubyte v = cast(ubyte)(27 + signature.recid);
-    v.writeln(" --v");
-    bytes[] t = tx.serialize~ [v]~signature.r ~ signature.s;
-    auto rawTx = rlpEncode(t).toHexString.ox;
-    rawTx.writeln(" -- rawTx 0");
+    conn.wallet[pk.address] = pk;
 
-    conn.eth_sendRawTransaction(rawTx);
+    Transaction tx = {
+        from: pk.address, nonce: conn.getTransactionCount(pk.address), to: "0x0123".convTo!Address, value: "0x123"
+            .BigInt, gas: "50000".BigInt, gasPrice: "10000".BigInt, data: []
+    };
+    auto txHash = conn.sendRawTransaction(tx);
+    import core.thread : Thread, dur;
+
+    conn.getTransaction(txHash).writeln;
+    Thread.sleep(10.dur!"seconds");
+    conn.getTransactionReceipt(txHash).get.writeln;
 }

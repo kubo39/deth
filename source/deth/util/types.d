@@ -3,13 +3,15 @@ module deth.util.types;
 import std.algorithm : reverse;
 import std.conv : to;
 import std : toHexString;
+import std.json : JSONValue;
+import std : Nullable, BigInt;
 
 struct FixedBytes(ulong size)
 {
     static assert(size <= 32, "not supported size: " ~ size);
     ubyte[size] value;
 
-    string toString()
+    string toString() immutable
     {
         return (cast(ubyte[]) value).toHexString.to!string;
     }
@@ -102,6 +104,63 @@ To convTo(To, From)(From f)
             return f.hexToBytes;
         }
     }
+    static if (is(From == JSONValue))
+    {
+        static if (is(To == TransactionReceipt))
+        {
+            TransactionReceipt tx;
+            tx.transactionIndex = f[`transactionIndex`].str[2 .. $].to!ulong(16);
+            tx.from = f[`from`].str[2 .. $].convTo!Address;
+            tx.blockHash = f[`blockHash`].str[2 .. $].convTo!Hash;
+            tx.blockNumber = f[`blockNumber`].str[2 .. $].to!ulong(16);
+            if (!f[`to`].isNull)
+                tx.to = f[`to`].str[2 .. $].convTo!Address;
+            tx.cumulativeGasUsed = f[`cumulativeGasUsed`].str.BigInt;
+            tx.gasUsed = f[`gasUsed`].str.BigInt;
+            if (!f[`contractAddress`].isNull)
+                tx.to = f[`contractAddress`].str[2 .. $].convTo!Address;
+            tx.logsBloom = f[`logsBloom`].str[2 .. $].hexToBytes;
+            tx.logs = new Log[f[`logs`].array.length];
+            foreach (i, log; f[`logs`].array)
+            {
+                tx.logs[i].removed = log[`removed`].boolean;
+                tx.logs[i].address = log[`address`].str[2 .. $].convTo!Address;
+                tx.logs[i].data = log[`data`].str[2 .. $].hexToBytes;
+                tx.logs[i].topics = [];
+                foreach (topic; log[`topics`].array)
+                {
+                    tx.logs[i].topics ~= topic.str[2 .. $].convTo!Hash;
+                }
+            }
+            return tx;
+        }
+        static if (is(To == TransactionInfo))
+        {
+            TransactionInfo info;
+            if (!f[`to`].isNull)
+                info.to = f[`to`].str.convTo!Address;
+            if (!f[`blockHash`].isNull)
+                info.blockHash = f[`blockHash`].str.convTo!Hash;
+            if (!f[`blockIndex`].isNull)
+                info.blockIndex = f[`blockIndex`].str[2 .. $].to!ulong(16);
+            if (!f[`transactionIndex`].isNull)
+                info.transactionIndex = f[`transactionIndex`].str[2 .. $].to!ulong(16);
+
+            info.from = f[`from`].str.convTo!Address;
+            info.input = f[`input`].str.convTo!bytes;
+
+            info.gas = f[`gas`].str.BigInt;
+            info.gasPrice = f[`gasPrice`].str.BigInt;
+            info.value = f[`value`].str.BigInt;
+
+            info.nonce = f[`nonce`].str[2 .. $].to!ulong(16);
+
+            info.v = f[`v`].str[2 .. $].to!ulong(16);
+            info.r = f[`r`].str.convTo!Hash;
+            info.s = f[`s`].str.convTo!Hash;
+            return info;
+        }
+    }
 }
 
 unittest
@@ -162,4 +221,45 @@ unittest
     char[4] t;
     t[] = 'a';
     assert(t.ox == "0xaaaa");
+}
+
+struct TransactionReceipt
+{
+    Hash transactionHash; // DATA, 32 Bytes - hash of the transaction.
+    ulong transactionIndex; // QUANTITY - integer of the transactions index position in the block.
+    Hash blockHash; // DATA, 32 Bytes - hash of the block where this transaction was in.
+    ulong blockNumber; // QUANTITY - block number where this transaction was in.
+    Address from; // DATA, 20 Bytes - address of the sender.
+    Nullable!Address to; // DATA, 20 Bytes - address of the receiver. null when its a contract creation transaction.
+    BigInt cumulativeGasUsed; // QUANTITY - The total amount of gas used when this transaction was executed in the block.
+    BigInt gasUsed; // QUANTITY - The amount of gas used by this specific transaction alone.
+    Nullable!Address contractAddress; // DATA, 20 Bytes - The contract address created, if the transaction was a contract creation, otherwise null.
+    Log[] logs; // Array - Array of log objects, which this transaction generated.
+    bytes logsBloom; // DATA, 256 Bytes - Bloom filter for light clients to quickly retrieve related logs.a
+}
+
+struct TransactionInfo
+{
+    Nullable!Hash blockHash;
+    Nullable!ulong blockIndex;
+    Address from;
+    BigInt gas;
+    BigInt gasPrice;
+    bytes input;
+    ulong nonce;
+    Nullable!Address to;
+    Nullable!ulong transactionIndex;
+    BigInt value;
+
+    ulong v;
+    Hash r;
+    Hash s;
+}
+
+struct Log
+{
+    bool removed;
+    Address address; //  DATA, 20 Bytes - address from which this log originated.
+    bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
+    Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)
 }
