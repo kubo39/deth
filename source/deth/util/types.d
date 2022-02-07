@@ -139,12 +139,13 @@ To convTo(To, From)(From f)
             TransactionInfo info;
             if (!f[`to`].isNull)
                 info.to = f[`to`].str.convTo!Address;
-            if (!f[`blockHash`].isNull)
+            if (`blockIndex` in f && !f[`blockIndex`].isNull)
+            {
                 info.blockHash = f[`blockHash`].str.convTo!Hash;
-            if (!f[`blockIndex`].isNull)
                 info.blockIndex = f[`blockIndex`].str[2 .. $].to!ulong(16);
-            if (!f[`transactionIndex`].isNull)
                 info.transactionIndex = f[`transactionIndex`].str[2 .. $].to!ulong(16);
+
+            }
 
             info.from = f[`from`].str.convTo!Address;
             info.input = f[`input`].str.convTo!bytes;
