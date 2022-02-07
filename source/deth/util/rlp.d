@@ -1,4 +1,4 @@
-module deth.rlp;
+module deth.util.rlp;
 
 import std;
 

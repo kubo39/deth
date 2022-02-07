@@ -22,66 +22,6 @@ enum BlockNumber
     PENDING = `pending`
 }
 
-struct Transaction
-{
-    Nullable!Address from;
-    Nullable!Address to;
-    Nullable!BigInt gas;
-    Nullable!BigInt gasPrice;
-    Nullable!BigInt value;
-    Nullable!bytes data = [];
-    Nullable!ulong nonce;
-
-    invariant
-    {
-        assert(gas.isNull || gas.get >= 0);
-        assert(gasPrice.isNull || gasPrice.get >= 0);
-        assert(value.isNull || value.get >= 0);
-    }
-
-    JSONValue toJSON()
-    {
-        string[string] result;
-        if (!from.isNull)
-            result["from"] = from.get.toHexString.ox;
-        if (!to.isNull)
-            result["to"] = to.get.toHexString.ox;
-        if (!gas.isNull)
-            result["gas"] = gas.get.convTo!string.ox;
-        if (!gasPrice.isNull)
-            result["gasPrice"] = gasPrice.get.convTo!string.ox;
-        if (!value.isNull)
-            result["value"] = value.get.convTo!string.ox;
-        if (!data.isNull)
-            result["data"] = data.get.toHexString.ox;
-        if (!nonce.isNull)
-            result["nonce"] = nonce.get.to!string(16).ox;
-        return result.JSONValue;
-    }
-
-    bytes[] serialize()
-    {
-        bytes[] encoded = [];
-        if (nonce.isNull)
-            encoded ~= [[]];
-        else
-            encoded ~= cutBytes(cast(bytes)[nonce.get]);
-
-        static immutable code = q{
-            if(field.isNull)
-                encoded ~= [[]];
-            else
-                encoded ~= field.get.convTo!bytes;
-        };
-        static foreach (field; ["gasPrice", "gas", "to", "value"])
-        {
-            mixin(code.replace("field", field));
-        }
-        encoded ~= data.get;
-        return encoded;
-    }
-}
-
 private interface IEthRPC
 {
     string web3_clientVersion();
@@ -187,6 +127,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         v.writeln;
 
         auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s).toHexString.ox;
+        "signed".writeln;
 
         return eth_sendRawTransaction(rawTx).convTo!Hash;
     }
@@ -233,7 +174,7 @@ unittest
 
 unittest
 {
-    auto conn = new RPCConnector("http://35.161.73.158:8545");
+    auto conn = new RPCConnector("https://rpc.qtestnet.org:8545");
     writeln("tx serialization");
     auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
     auto pk = new secp256k1(pkValue);
@@ -243,7 +184,32 @@ unittest
         from: pk.address, nonce: conn.getTransactionCount(pk.address), to: "0x0123".convTo!Address, value: "0x123"
             .BigInt, gas: "50000".BigInt, gasPrice: "10000".BigInt, data: []
     };
-    auto txHash = conn.sendRawTransaction(tx);
+    Hash txHash;
+    while (1)
+    {
+        import rpc.core : RpcException;
+
+        try
+        {
+            txHash = conn.sendRawTransaction(tx);
+            break;
+        }
+        catch (RpcException e)
+        {
+            import std.string : indexOf;
+
+            if (e.msg.indexOf("invalid sender") >= 0)
+            {
+                "Resigning ".writeln;
+            }
+            else
+            {
+                e.msg.writeln;
+                break;
+            }
+        }
+    }
+
     import core.thread : Thread, dur;
 
     conn.getTransaction(txHash).writeln;

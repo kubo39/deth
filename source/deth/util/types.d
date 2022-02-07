@@ -6,6 +6,8 @@ import std : toHexString;
 import std.json : JSONValue;
 import std : Nullable, BigInt;
 
+public import deth.util.transaction : Transaction;
+
 struct FixedBytes(ulong size)
 {
     static assert(size <= 32, "not supported size: " ~ size);
