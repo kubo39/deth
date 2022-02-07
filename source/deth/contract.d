@@ -13,7 +13,7 @@ import deth.rpcconnector;
 
 import keccak : keccak_256;
 
-enum INTEGRAL = ["address", "uint256", "int256", "int32"];
+static immutable INTEGRAL = ["address", "uint256", "int256", "int32"];
 
 class Contract(string buildPath, string bin)
 {
@@ -45,7 +45,7 @@ class Contract(string buildPath, string bin)
         address = conn.getTransactionReceipt(trHash).contractAddress.get;
     }
 
-    override string toString()
+    override string toString() immutable
     {
         return " Contract on 0x" ~ address.convTo!string;
     }
