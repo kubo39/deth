@@ -11,9 +11,10 @@ import std.array : array, join;
 import std.stdio;
 import rpc.protocol.json;
 import std.array : replace;
-import deth.rlp : rlpEncode, cutBytes;
+import deth.util.rlp : rlpEncode, cutBytes;
 import deth.util.types;
 import secp256k1 : secp256k1;
+import core.thread : Thread, dur, Fiber;
 
 enum BlockNumber
 {
@@ -124,10 +125,8 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         auto signature = wallet[tx.from.get].sign(hash);
 
         ubyte v = cast(ubyte)(27 + signature.recid);
-        v.writeln;
 
         auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s).toHexString.ox;
-        "signed".writeln;
 
         return eth_sendRawTransaction(rawTx).convTo!Hash;
     }
@@ -145,44 +144,16 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
 unittest
 {
-    import std.stdio;
-    import std.process : environment;
-
-    auto host = environment.get("RPC_HOST", "127.0.0.1");
-    auto conn = new RPCConnector("http://" ~ host ~ ":8545");
-    conn.web3_clientVersion.writeln;
-    conn.web3_sha3("0x1234t66");
-    conn.net_version.writeln;
-    conn.net_listening.writeln;
-    conn.net_peerCount.writeln;
-    conn.eth_protocolVersion.writeln;
-    conn.eth_syncing.writeln;
-    conn.eth_mining.writeln;
-    conn.eth_hashrate.writeln;
-    conn.eth_gasPrice.writeln;
-    auto accounts = conn.eth_accounts;
-    accounts.writeln;
-    conn.eth_blockNumber.writeln;
-    conn.getBalance("123".convTo!Address).writeln;
-    conn.eth_getBalance(accounts[0], "latest".JSONValue).writeln;
-    conn.eth_getBalance(accounts[0], 0.JSONValue).writeln;
-    conn.eth_getTransactionCount(accounts[0], "latest".JSONValue).writeln;
-    conn.eth_getBlockTransactionCountByNumber("latest".JSONValue).writeln;
-    conn.eth_sign(accounts[0], "0xaa1230fgD").writeln;
-
-}
-
-unittest
-{
     auto conn = new RPCConnector("https://rpc.qtestnet.org:8545");
-    writeln("tx serialization");
     auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
     auto pk = new secp256k1(pkValue);
     conn.wallet[pk.address] = pk;
+    import deth.util.decimals;
 
     Transaction tx = {
-        from: pk.address, nonce: conn.getTransactionCount(pk.address), to: "0x0123".convTo!Address, value: "0x123"
-            .BigInt, gas: "50000".BigInt, gasPrice: "10000".BigInt, data: []
+        from: pk.address, nonce: conn.getTransactionCount(pk.address), to: "0xdddddddd0d0d0d0d0d0d0ddddddddd"
+            .convTo!Address, value: 16.wei, gas: "50000".BigInt, gasPrice: 50.gwei,
+        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast."
     };
     Hash txHash;
     while (1)
@@ -198,21 +169,24 @@ unittest
         {
             import std.string : indexOf;
 
-            if (e.msg.indexOf("invalid sender") >= 0)
+            if (!(e.msg.indexOf("invalid sender") >= 0))
             {
-                "Resigning ".writeln;
-            }
-            else
-            {
-                e.msg.writeln;
-                break;
+                throw e;
             }
         }
     }
 
-    import core.thread : Thread, dur;
+    conn.getTransaction(txHash);
+    while (conn.getTransaction(txHash).blockHash.isNull)
+    {
+        Thread.sleep(250.dur!"msecs");
+    }
+    assert(!conn.getTransactionReceipt(txHash).isNull);
+}
 
-    conn.getTransaction(txHash).writeln;
-    Thread.sleep(10.dur!"seconds");
-    conn.getTransactionReceipt(txHash).get.writeln;
+unittest
+{
+    import std.stdio;
+
+    writefln!"\033[1;32m%s\033[0m"(" rpc test passed. ");
 }

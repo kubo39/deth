@@ -8,22 +8,6 @@ import std : Nullable, BigInt;
 
 public import deth.util.transaction : Transaction;
 
-struct FixedBytes(ulong size)
-{
-    static assert(size <= 32, "not supported size: " ~ size);
-    ubyte[size] value;
-
-    string toString() immutable
-    {
-        return (cast(ubyte[]) value).toHexString.to!string;
-    }
-
-    bytes toBytes()
-    {
-        return value[];
-    }
-}
-
 alias Address = ubyte[20];
 alias Hash = ubyte[32];
 alias bytes = ubyte[];
@@ -46,6 +30,13 @@ unittest
 
 To convTo(To, From)(From f)
 {
+    static if (is(From == bytes))
+    {
+        static if (is(To == string))
+        {
+            return f.toHexString;
+        }
+    }
     static if (is(From == Address))
     {
         static if (is(To == string))
@@ -141,10 +132,10 @@ To convTo(To, From)(From f)
             TransactionInfo info;
             if (!f[`to`].isNull)
                 info.to = f[`to`].str.convTo!Address;
-            if (`blockIndex` in f && !f[`blockIndex`].isNull)
+            if (`blockNumber` in f && !f[`blockNumber`].isNull)
             {
                 info.blockHash = f[`blockHash`].str.convTo!Hash;
-                info.blockIndex = f[`blockIndex`].str[2 .. $].to!ulong(16);
+                info.blockNumber = f[`blockNumber`].str[2 .. $].to!ulong(16);
                 info.transactionIndex = f[`transactionIndex`].str[2 .. $].to!ulong(16);
 
             }
@@ -219,7 +210,6 @@ unittest
 {
     import std;
 
-    "0X TEST:".writeln;
     assert("0x123" == `123`.ox);
     char[4] t;
     t[] = 'a';
@@ -244,7 +234,7 @@ struct TransactionReceipt
 struct TransactionInfo
 {
     Nullable!Hash blockHash;
-    Nullable!ulong blockIndex;
+    Nullable!ulong blockNumber;
     Address from;
     BigInt gas;
     BigInt gasPrice;
