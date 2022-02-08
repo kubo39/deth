@@ -5,17 +5,18 @@
 		"botan": "1.12.19",
 		"botan-math": "1.0.3",
 		"diet-ng": "1.8.0",
-		"eventcore": "0.9.17",
-		"keccak-tiny": "0.0.1-alpha",
+		"eventcore": "0.9.20",
+		"keccak-tiny": "1.0.1",
 		"libasync": "0.8.6",
 		"memutils": "1.0.4",
 		"mir-linux-kernel": "1.0.1",
 		"openssl": "1.1.6+1.0.1g",
+		"secp256k1": "0.0.11",
 		"stdx-allocator": "2.77.5",
 		"taggedalgebraic": "0.11.22",
-		"tynukrpc": "~master",
+		"tynukrpc": "1.2.0",
 		"unit-threaded": "2.0.3",
-		"vibe-core": "1.21.0",
-		"vibe-d": "0.9.3"
+		"vibe-core": "1.22.0",
+		"vibe-d": "0.9.4"
 	}
 }
