@@ -116,12 +116,11 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     Hash sendRawTransaction(Transaction tx)
     {
-        import keccak : keccak_256;
+        import keccak : keccak256;
         import deth.util.types;
 
         bytes rlpTx = tx.serialize.rlpEncode;
-        Hash hash;
-        keccak_256(hash.ptr, hash.length, rlpTx.ptr, rlpTx.length);
+        Hash hash = rlpTx.keccak256;
         auto signature = wallet[tx.from.get].sign(hash);
 
         ubyte v = cast(ubyte)(27 + signature.recid);
