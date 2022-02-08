@@ -42,10 +42,10 @@ class Contract(string buildPath, string bin)
         tr.data = deployedBytecode[2 .. $].hexToBytes ~ encode(argv);
         tr.gas = 6_721_975.BigInt;
         auto trHash = conn.eth_sendTransaction(tr.toJSON)[2 .. $].convTo!Hash;
-        address = conn.getTransactionReceipt(trHash).contractAddress.get;
+        address = conn.getTransactionReceipt(trHash).get.contractAddress.get;
     }
 
-    override string toString() immutable
+    override string toString() const
     {
         return " Contract on 0x" ~ address.convTo!string;
     }

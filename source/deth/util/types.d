@@ -28,8 +28,11 @@ unittest
     assert("0x123".hexToBytes == [0x1, 0x23]);
 }
 
-To convTo(To, From)(From f)
+To convTo(To, _From)(const _From f)
 {
+    import std.traits : Unconst;
+
+    alias From = Unconst!_From;
     static if (is(From == bytes))
     {
         static if (is(To == string))
