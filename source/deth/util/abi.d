@@ -184,3 +184,20 @@ unittest
 
     writefln!"\033[1;32m%s\033[0m"(" abi encode test passed. ");
 }
+
+T decodeUnit(T)(ubyte[] data)
+in (data.length % 32 == 0)
+{
+    T result;
+    static if (is(T == BigInt))
+    {
+        result = data.toHexString.BigInt;
+    }
+    else static if (isStaticArray!T && is(ElementType!T == ubyte))
+    {
+        result[] = data[$ - result.length .. $];
+    }
+    else
+        static assert(0, "Type not supported");
+    return result;
+}
