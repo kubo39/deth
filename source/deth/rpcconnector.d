@@ -86,7 +86,9 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     ubyte[] call(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST)
     {
         mixin BlockNumberToJSON!block;
-        return super.eth_call(tx.toJSON, _block)[2 .. $].hexToBytes;
+        tx.toJSON.writeln;
+        super.eth_call(tx.toJSON, _block).writeln;
+        return super.eth_call(tx.toJSON, _block)[2 .. $].convTo!bytes;
     }
 
     ulong getTransactionCount(BlockParameter)(Address address,
@@ -135,8 +137,9 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         JSONValue jtx = [
             "from": tx.from.get.convTo!string.ox,
             "value": tx.value.get.convTo!string.ox,
-            "to": tx.to.get.convTo!string.ox
         ];
+        if (!tx.to.isNull)
+            jtx["to"] = tx.to.get.convTo!string.ox;
         return eth_sendTransaction(jtx).convTo!Hash;
     }
 }

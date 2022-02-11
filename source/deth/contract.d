@@ -7,7 +7,7 @@ import std.stdio;
 import std.array : replace, join;
 import std.string : indexOf, format;
 import std.algorithm : canFind;
-import deth.util.abi : encode;
+import deth.util.abi : encode, decode;
 import deth.util.types;
 import deth.rpcconnector;
 
@@ -24,17 +24,17 @@ class Contract(ContractABI abi)
 
     static string deployedBytecode;
 
-    this(RPCConnector conn)
+    this(RPCConnector conn, Address addr)
     {
         this.conn = conn;
-        this.address = null;
+        this.address = addr;
     }
 
     debug pragma(msg, allFunctions(abi));
     mixin(allFunctions(abi));
 
     // Sends traansaction for deploy contract
-    static void deploy(ARGS...)(ARGS argv)
+    static auto deploy(ARGS...)(RPCConnector conn, ARGS argv)
     {
         string from = null;
         Transaction tr;
@@ -42,8 +42,10 @@ class Contract(ContractABI abi)
         tr.from = (from is null ? conn.eth_accounts[0] : from)[2 .. $].convTo!Address;
         tr.data = deployedBytecode[2 .. $].hexToBytes ~ encode(argv);
         tr.gas = 6_721_975.BigInt;
-        auto trHash = conn.eth_sendTransaction(tr.toJSON)[2 .. $].convTo!Hash;
-        address = conn.getTransactionReceipt(trHash).get.contractAddress.get;
+        tr.value = 0.BigInt;
+        auto trHash = conn.sendTransaction(tr);
+        auto address = conn.getTransactionReceipt(trHash).get.contractAddress.get;
+        return new Contract!abi(conn, address);
     }
 
     override string toString() const
@@ -67,12 +69,24 @@ private string allFunctions(ContractABI abi)
     foreach (func; abi.functions)
     {
         auto returns = func.outputType.toDType;
-        code ~= q{
-            %s %s
-            {
-                callMethod!(%s)%s;
-            }
-        }.format("void ", func.dSignature, func.selector, func.dargs);
+        if (returns == "void")
+        {
+            code ~= q{
+                %s %s
+                {
+                    callMethod!(%s)%s;
+                }
+            }.format(returns, func.dSignature, func.selector, func.dargs);
+        }
+        else
+        {
+            code ~= q{
+                %s %s
+                {
+                    return callMethod!(%s)%s.decode!%s;
+                }
+            }.format(returns, func.dSignature, func.selector, func.dargs, returns);
+        }
     }
     return code;
 }

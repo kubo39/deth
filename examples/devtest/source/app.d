@@ -13,10 +13,11 @@ alias TestContract = Contract!TestABI;
 
 void main()
 {
+    TestContract.deployedBytecode = import(binPath);
     import std.process : environment;
 
-    TestABI.writeln;
-    TestContract.stringof.writeln;
     auto host = environment.get("RPC_HOST", "127.0.0.1");
     auto eth = new RPCConnector("http://" ~ host ~ ":8545");
+    auto test = TestContract.deploy(eth, 32);
+    test.get(eth.eth_accounts[0].convTo!Address).writeln;
 }
