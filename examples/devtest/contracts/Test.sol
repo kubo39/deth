@@ -11,6 +11,10 @@ contract Test{
     function set(int32 value)public{
         map[msg.sender] = value;
     }
+
+    function getSender()public view returns(address){
+        return msg.sender;
+    }
     
     function get(address user) public view returns(int32){ 
         require(map[user] != 0,"No data");

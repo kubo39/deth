@@ -113,20 +113,44 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return eth_getTransactionByHash(txHash.convTo!string.ox).convTo!TransactionInfo;
     }
 
-    Hash sendRawTransaction(Transaction tx)
+    private auto sendUntilInvalidSender(Transaction tx)
     {
         import keccak : keccak256;
         import deth.util.types;
 
-        bytes rlpTx = tx.serialize.rlpEncode;
-        Hash hash = rlpTx.keccak256;
-        auto signature = wallet[tx.from.get].sign(hash);
+        while (1)
+        {
+            import rpc.core : RpcException;
 
-        ubyte v = cast(ubyte)(27 + signature.recid);
+            try
+            {
+                bytes rlpTx = tx.serialize.rlpEncode;
+                Hash hash = rlpTx.keccak256;
+                auto signature = wallet[tx.from.get].sign(hash);
 
-        auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s).toHexString.ox;
+                ubyte v = cast(ubyte)(27 + signature.recid);
 
-        return eth_sendRawTransaction(rawTx).convTo!Hash;
+                auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s)
+                    .toHexString.ox;
+
+                return eth_sendRawTransaction(rawTx).convTo!Hash;
+            }
+            catch (RpcException e)
+            {
+                import std.string : indexOf;
+
+                if (!(e.msg.indexOf("invalid sender") >= 0))
+                {
+                    throw e;
+                }
+            }
+        }
+
+    }
+
+    Hash sendRawTransaction(Transaction tx)
+    {
+        return sendUntilInvalidSender(tx);
     }
 
     Hash sendTransaction(Transaction tx)
@@ -182,27 +206,7 @@ unittest
             .convTo!Address, value: 16.wei, gas: "50000".BigInt, gasPrice: 50.gwei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast."
     };
-    Hash txHash;
-    while (1)
-    {
-        import rpc.core : RpcException;
-
-        try
-        {
-            txHash = conn.sendRawTransaction(tx);
-            break;
-        }
-        catch (RpcException e)
-        {
-            import std.string : indexOf;
-
-            if (!(e.msg.indexOf("invalid sender") >= 0))
-            {
-                throw e;
-            }
-        }
-    }
-
+    Hash txHash = conn.sendRawTransaction(tx);
     conn.getTransaction(txHash);
     while (conn.getTransaction(txHash).blockHash.isNull)
     {

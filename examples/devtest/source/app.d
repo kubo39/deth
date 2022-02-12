@@ -24,4 +24,5 @@ void main()
     test.get(accounts[0]).writeln;
     test.set(33.BigInt).from(accounts[0]).send;
     test.get(accounts[0]).writeln;
+    test.getSender(accounts[3]).convTo!string.writeln;
 }

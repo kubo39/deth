@@ -51,19 +51,27 @@ class Contract(ContractABI abi)
         return " Contract on 0x" ~ address.convTo!string;
     }
 
-    auto callMethod(Selector selector, ARGS...)(ARGS argv)
+    auto callMethod(Selector selector, ARGS...)(Address from, BigInt value, ARGS argv)
     {
         Transaction tx;
-        tx.data = selector[] ~ encode(argv);
+        tx.data = selector[];
+        tx.value = value;
+        tx.from = from;
+        static if (ARGS.length != 0)
+            tx.data = selector[] ~ encode(argv);
         tx.to = this.address;
         return conn.call(tx, BlockNumber.LATEST);
     }
 
-    auto sendMethod(Selector selector, ARGS...)(ARGS argv)
+    auto sendMethod(Selector selector, ARGS...)(Address from, BigInt value, ARGS argv)
     {
         Transaction tx;
-        tx.data = selector[] ~ encode(argv);
+        tx.value = value;
+        tx.from = from;
+        tx.data = selector[];
         tx.to = this.address;
+        static if (ARGS.length != 0)
+            tx.data = selector[] ~ encode(argv);
         return SendableTransaction(tx, conn);
     }
 }
@@ -197,6 +205,7 @@ struct ContractFunction
         {
             args ~= type.toDType ~ " v" ~ i.to!string;
         }
+        args ~= ["Address from = Address.init", "BigInt value = 0.BigInt"];
         return name.getSignature(args);
     }
 
@@ -207,6 +216,7 @@ struct ContractFunction
         {
             args ~= " v" ~ i.to!string;
         }
+        args = ["from", "value"] ~ args;
         return "".getSignature(args);
     }
 }
@@ -355,7 +365,7 @@ unittest
     assert(tx.tx.gas.get == 456.BigInt);
 }
 
-string createSetter(string fieldType, string fieldName, string includedField = "")
+private string createSetter(string fieldType, string fieldName, string includedField = "")
 {
     return q{
         @property ref auto %s(%s value){
