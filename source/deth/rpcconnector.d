@@ -6,7 +6,7 @@ import std.json : JSONValue;
 import std.bigint;
 import std.conv : to;
 import std.range : chunks;
-import std.algorithm : map;
+import std.algorithm : map, canFind;
 import std.array : array, join;
 import std.stdio;
 import rpc.protocol.json;
@@ -132,10 +132,9 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     Hash sendTransaction(Transaction tx)
     {
 
-        JSONValue jtx = [
-            "from": tx.from.get.convTo!string.ox,
-            "value": tx.value.get.convTo!string.ox,
-        ];
+        JSONValue jtx = ["from": tx.from.get.convTo!string.ox,];
+        if (!tx.value.isNull)
+            jtx["value"] = tx.value.get.convTo!string.ox;
         if (!tx.gasPrice.isNull)
             jtx["gasPrice"] = tx.gasPrice.get.convTo!string.ox;
         if (!tx.gas.isNull)
@@ -145,6 +144,28 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         if (!tx.to.isNull)
             jtx["to"] = tx.to.get.convTo!string.ox;
         return eth_sendTransaction(jtx).convTo!Hash;
+    }
+
+    Address[] accounts()
+    {
+        return wallet.keys;
+    }
+
+    Address[] remoteAccounts()
+    {
+        return eth_accounts.map!(a => a.convTo!Address).array;
+    }
+
+    bool isUnlocked(Address addr)
+    {
+        return accounts.canFind(addr);
+    }
+
+    bool isUnlockedRemote(Address addr)
+    {
+        auto remoteAccounts = eth_accounts;
+        return remoteAccounts.canFind(addr.convTo!string.ox);
+
     }
 }
 

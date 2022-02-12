@@ -196,38 +196,43 @@ unittest
 T decode(T)(ubyte[] data, size_t offsetShift = 0)
 in (data.length % 32 == 0)
 {
-    T result;
-    static if (is(T == BigInt))
+    static if (is(T == void))
+        return;
+    else
     {
-        result = data[0 .. SS].toHexString.ox.BigInt;
-    }
-    else static if (isStaticArray!T && is(ElementType!T == ubyte))
-    {
-        result[] = data[SS - result.length .. SS];
-    }
-    else static if (isDynamicArray!T)
-    {
-        long offset = data[0 .. SS].decode!BigInt.toLong - offsetShift;
-        auto arrayData = data[offset .. $];
-        long len = arrayData[0 .. SS].decode!BigInt.toLong;
-        foreach (i; 0 .. len)
+        T result;
+        static if (is(T == BigInt))
         {
-            alias Element = ElementType!T;
-            // todo size of type
-            enum SC = 1;
-            static if (is(Element == dchar) || is(Element == char) || is(Element == ubyte))
+            result = data[0 .. SS].toHexString.ox.BigInt;
+        }
+        else static if (isStaticArray!T && is(ElementType!T == ubyte))
+        {
+            result[] = data[SS - result.length .. SS];
+        }
+        else static if (isDynamicArray!T)
+        {
+            long offset = data[0 .. SS].decode!BigInt.toLong - offsetShift;
+            auto arrayData = data[offset .. $];
+            long len = arrayData[0 .. SS].decode!BigInt.toLong;
+            foreach (i; 0 .. len)
             {
-                result ~= arrayData[SS + i .. SS + i + 1];
-            }
-            else
-            {
-                result ~= arrayData[SS + i * SS * SC .. $].decode!Element(i * SS * SC);
+                alias Element = ElementType!T;
+                // todo size of type
+                enum SC = 1;
+                static if (is(Element == dchar) || is(Element == char) || is(Element == ubyte))
+                {
+                    result ~= arrayData[SS + i .. SS + i + 1];
+                }
+                else
+                {
+                    result ~= arrayData[SS + i * SS * SC .. $].decode!Element(i * SS * SC);
+                }
             }
         }
+        else
+            static assert(0, "Type not supported");
+        return result;
     }
-    else
-        static assert(0, "Type not supported");
-    return result;
 }
 
 void runTestDecode(T)(T a)

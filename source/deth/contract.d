@@ -13,8 +13,6 @@ import deth.rpcconnector;
 
 import keccak : keccak_256;
 
-static immutable INTEGRAL = ["address", "uint256", "int256", "int32"];
-
 alias Selector = ubyte[4];
 
 class Contract(ContractABI abi)
@@ -37,14 +35,14 @@ class Contract(ContractABI abi)
     static auto deploy(ARGS...)(RPCConnector conn, ARGS argv)
     {
         string from = null;
-        Transaction tr;
+        Transaction tx;
         assert(deployedBytecode.length, "deployedBytecode should be set");
-        tr.from = (from is null ? conn.eth_accounts[0] : from).convTo!Address;
-        tr.data = deployedBytecode ~ encode(argv);
-        tr.gas = 6_721_975.BigInt;
-        tr.value = 0.BigInt;
-        auto trHash = conn.sendTransaction(tr);
-        auto address = conn.getTransactionReceipt(trHash).get.contractAddress.get;
+        tx.from = (from is null ? conn.eth_accounts[0] : from).convTo!Address;
+        tx.data = deployedBytecode ~ encode(argv);
+        tx.gas = 6_721_975.BigInt;
+        tx.value = 0.BigInt;
+        auto txHash = conn.sendTransaction(tx);
+        auto address = conn.getTransactionReceipt(txHash).get.contractAddress.get;
         return new Contract!abi(conn, address);
     }
 
@@ -55,11 +53,18 @@ class Contract(ContractABI abi)
 
     auto callMethod(Selector selector, ARGS...)(ARGS argv)
     {
-        Transaction tr;
-        tr.data = selector[] ~ encode(argv);
-        tr.from = conn.eth_accounts[0][2 .. $].convTo!Address;
-        tr.to = this.address;
-        return conn.call(tr, BlockNumber.LATEST);
+        Transaction tx;
+        tx.data = selector[] ~ encode(argv);
+        tx.to = this.address;
+        return conn.call(tx, BlockNumber.LATEST);
+    }
+
+    auto sendMethod(Selector selector, ARGS...)(ARGS argv)
+    {
+        Transaction tx;
+        tx.data = selector[] ~ encode(argv);
+        tx.to = this.address;
+        return SendableTransaction(tx, conn);
     }
 }
 
@@ -68,24 +73,24 @@ private string allFunctions(ContractABI abi)
     string code = "";
     foreach (func; abi.functions)
     {
-        auto returns = func.outputType.toDType;
-        if (returns == "void")
+        if (func.constant)
         {
-            code ~= q{
-                %s %s
-                {
-                    callMethod!(%s)%s;
-                }
-            }.format(returns, func.dSignature, func.selector, func.dargs);
-        }
-        else
-        {
+            auto returns = func.outputType.toDType;
             code ~= q{
                 %s %s
                 {
                     return callMethod!(%s)%s.decode!%s;
                 }
             }.format(returns, func.dSignature, func.selector, func.dargs, returns);
+        }
+        else
+        {
+            code ~= q{
+                SendableTransaction %s
+                {
+                    return sendMethod!(%s)%s;
+                }
+            }.format(func.dSignature, func.selector, func.dargs);
         }
     }
     return code;
@@ -221,7 +226,6 @@ private string parseOutput(JSONValue outputs)
     JSONValue[] outputsObjs = outputs.array;
     foreach (JSONValue i; outputsObjs)
     {
-
         auto outputType = i[`type`].str;
         if (outputType.canFind("tuple"))
             outputType = outputType.replace("tuple", i[`components`].parseTuple);
@@ -306,4 +310,57 @@ enum Mutability
     VIEW = "view",
     PAYABLE = "payable",
     NONPAYABLE = "nonpayable",
+}
+
+struct SendableTransaction
+{
+    Transaction tx;
+    private RPCConnector conn;
+
+    static foreach (f, t; [
+            "from": "Address",
+            "to": "Address",
+            "gas": "BigInt",
+            "gasPrice": "BigInt",
+            "value": "BigInt",
+            "data": "bytes",
+            "nonce": "ulong",
+        ])
+    {
+        mixin(createSetter(t, f, ".tx"));
+    }
+
+    Hash send()
+    {
+        if (tx.from.isNull)
+        {
+            assert(0, "Not implemeted");
+        }
+        if (conn.isUnlocked(tx.from.get))
+        {
+            return conn.sendRawTransaction(tx);
+        }
+        else if (conn.isUnlockedRemote(tx.from.get))
+        {
+            return conn.sendTransaction(tx);
+        }
+        assert(0, "бачок потік");
+    }
+}
+
+unittest
+{
+    SendableTransaction tx;
+    tx.gas(123.BigInt).gas(456.BigInt);
+    assert(tx.tx.gas.get == 456.BigInt);
+}
+
+string createSetter(string fieldType, string fieldName, string includedField = "")
+{
+    return q{
+        @property ref auto %s(%s value){
+            this%s.%s = value;
+            return this;
+        }
+    }.format(fieldName, fieldType, includedField, fieldName);
 }
