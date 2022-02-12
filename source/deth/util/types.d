@@ -2,11 +2,13 @@ module deth.util.types;
 
 import std.algorithm : reverse;
 import std.conv : to;
-import std : toHexString;
+import std : toHexStringT = toHexString, LetterCase;
 import std.json : JSONValue;
 import std : Nullable, BigInt;
-
+import std.stdio;
 public import deth.util.transaction : Transaction;
+
+alias toHexString = toHexStringT!(LetterCase.lower);
 
 alias Address = ubyte[20];
 alias Hash = ubyte[32];
@@ -114,7 +116,7 @@ To convTo(To, _From)(const _From f)
             tx.cumulativeGasUsed = f[`cumulativeGasUsed`].str.BigInt;
             tx.gasUsed = f[`gasUsed`].str.BigInt;
             if (!f[`contractAddress`].isNull)
-                tx.to = f[`contractAddress`].str[2 .. $].convTo!Address;
+                tx.contractAddress = f[`contractAddress`].str[2 .. $].convTo!Address;
             tx.logsBloom = f[`logsBloom`].str[2 .. $].hexToBytes;
             tx.logs = new Log[f[`logs`].array.length];
             foreach (i, log; f[`logs`].array)

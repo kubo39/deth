@@ -34,5 +34,4 @@ test-job:
     - dub upgrade
     - RPC_HOST=trufflesuite-ganache-cli dub test
 
-    # TODO: Fix devtest after contract refactoring
-    # - RPC_HOST=trufflesuite-ganache-cli dub run deth:devtest 
+    - RPC_HOST=trufflesuite-ganache-cli dub run deth:devtest 

@@ -55,6 +55,10 @@ EncodingResult encodeUnit(T)(T v)
     {
         result.value = v.BigInt.convTo!bytes.padLeft(0, SS).array;
     }
+    else static if (isStaticArray!T && is(ElementType!T == Unconst!ubyte))
+    {
+        result.value = v[].padLeft(0, SS);
+    }
     else static if (isStaticArray!T)
     {
         result ~= v[].map!(e => e.encodeUnit)
@@ -127,6 +131,10 @@ auto tuplelizeT(T)(T v)
     {
         return tuple(v);
     }
+    else static if (isStaticArray!T && is(ElementType!T == Unconst!ubyte))
+    {
+        return tuple(v);
+    }
     else static if (isStaticArray!T)
     {
         mixin(q{
@@ -183,4 +191,75 @@ unittest
     import std.stdio;
 
     writefln!"\033[1;32m%s\033[0m"(" abi encode test passed. ");
+}
+
+T decode(T)(ubyte[] data, size_t offsetShift = 0)
+in (data.length % 32 == 0)
+{
+    static if (is(T == void))
+        return;
+    else
+    {
+        T result;
+        static if (is(T == BigInt))
+        {
+            result = data[0 .. SS].toHexString.ox.BigInt;
+        }
+        else static if (isStaticArray!T && is(ElementType!T == ubyte))
+        {
+            result[] = data[SS - result.length .. SS];
+        }
+        else static if (isDynamicArray!T)
+        {
+            long offset = data[0 .. SS].decode!BigInt.toLong - offsetShift;
+            auto arrayData = data[offset .. $];
+            long len = arrayData[0 .. SS].decode!BigInt.toLong;
+            foreach (i; 0 .. len)
+            {
+                alias Element = ElementType!T;
+                // todo size of type
+                enum SC = 1;
+                static if (is(Element == dchar) || is(Element == char) || is(Element == ubyte))
+                {
+                    result ~= arrayData[SS + i .. SS + i + 1];
+                }
+                else
+                {
+                    result ~= arrayData[SS + i * SS * SC .. $].decode!Element(i * SS * SC);
+                }
+            }
+        }
+        else
+            static assert(0, "Type not supported");
+        return result;
+    }
+}
+
+void runTestDecode(T)(T a)
+{
+    auto got = a.encode.decode!T;
+    assert(got == a, got.to!string);
+
+}
+
+unittest
+{
+    ubyte[4] s = [1, 2, 3, 4];
+    runTestDecode(10.BigInt);
+    runTestDecode([2.BigInt]);
+    runTestDecode([1.BigInt, 2.BigInt, 3.BigInt]);
+    runTestDecode([[1.BigInt, 2.BigInt, 3.BigInt]]);
+    runTestDecode([
+        [10.BigInt, 20.BigInt, 30.BigInt], [40.BigInt, 50.BigInt, 60.BigInt],
+        [40.BigInt, 50.BigInt, 60.BigInt]
+    ]);
+    runTestDecode("HelloWorld!");
+    runTestDecode(s);
+}
+
+unittest
+{
+    import std.stdio;
+
+    writefln!"\033[1;32m%s\033[0m"(" abi decode test passed. ");
 }
