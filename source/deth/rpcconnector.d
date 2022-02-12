@@ -86,8 +86,6 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     ubyte[] call(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST)
     {
         mixin BlockNumberToJSON!block;
-        tx.toJSON.writeln;
-        super.eth_call(tx.toJSON, _block).writeln;
         return super.eth_call(tx.toJSON, _block)[2 .. $].convTo!bytes;
     }
 
@@ -101,7 +99,6 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     Nullable!TransactionReceipt getTransactionReceipt(Hash h)
     {
         JSONValue a = eth_getTransactionReceipt(h.convTo!string.ox);
-        a.toPrettyString.writeln;
         if (a.isNull)
         {
             Nullable!TransactionReceipt tx;
@@ -147,7 +144,6 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
             jtx["data"] = tx.data.get.convTo!string.ox;
         if (!tx.to.isNull)
             jtx["to"] = tx.to.get.convTo!string.ox;
-        jtx.toPrettyString.writeln;
         return eth_sendTransaction(jtx).convTo!Hash;
     }
 }

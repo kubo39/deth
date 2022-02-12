@@ -123,9 +123,19 @@ struct ContractABI
     private void functionFromJson(JSONValue item)
     {
         ContractFunction fn;
+
         if (`outputs` in item && !item[`outputs`].isNull)
         {
             fn.outputType = parseOutput(item[`outputs`]);
+        }
+        fn.mutability = item[`stateMutability`].str;
+        if (fn.mutability == Mutability.PAYABLE)
+        {
+            fn.payable = true;
+        }
+        else if (fn.mutability == Mutability.VIEW || fn.mutability == Mutability.PURE)
+        {
+            fn.constant = true;
         }
         fn.inputTypes = item[`inputs`].parseInputs;
         fn.name = item[`name`].str;
@@ -165,10 +175,22 @@ private string getSignature(string name, string[] args)
 
 struct ContractFunction
 {
+
+    enum Mutability
+    {
+        PURE = "pure",
+        VIEW = "view",
+        PAYABLE = "payable",
+        NONPAYABLE = "nonpayable",
+    }
+
     string name;
     Selector selector;
     string outputType;
     string[] inputTypes;
+    Mutability mutability;
+    bool payable;
+    bool constant;
     mixin Signature;
 
     @property string dSignature()
