@@ -13,6 +13,7 @@ contract Test{
     }
     
     function get(address user) public view returns(int32){ 
+        require(map[user] != 0,"No data");
         return map[user];
     }
     

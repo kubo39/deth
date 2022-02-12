@@ -101,7 +101,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     Nullable!TransactionReceipt getTransactionReceipt(Hash h)
     {
         JSONValue a = eth_getTransactionReceipt(h.convTo!string.ox);
-
+        a.toPrettyString.writeln;
         if (a.isNull)
         {
             Nullable!TransactionReceipt tx;
@@ -134,12 +134,20 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     Hash sendTransaction(Transaction tx)
     {
+
         JSONValue jtx = [
             "from": tx.from.get.convTo!string.ox,
             "value": tx.value.get.convTo!string.ox,
         ];
+        if (!tx.gasPrice.isNull)
+            jtx["gasPrice"] = tx.gasPrice.get.convTo!string.ox;
+        if (!tx.gas.isNull)
+            jtx["gas"] = tx.gas.get.convTo!string.ox;
+        if (!tx.data.isNull)
+            jtx["data"] = tx.data.get.convTo!string.ox;
         if (!tx.to.isNull)
             jtx["to"] = tx.to.get.convTo!string.ox;
+        jtx.toPrettyString.writeln;
         return eth_sendTransaction(jtx).convTo!Hash;
     }
 }

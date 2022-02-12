@@ -22,7 +22,7 @@ class Contract(ContractABI abi)
     Address address;
     private RPCConnector conn;
 
-    static string deployedBytecode;
+    static bytes deployedBytecode;
 
     this(RPCConnector conn, Address addr)
     {
@@ -39,8 +39,8 @@ class Contract(ContractABI abi)
         string from = null;
         Transaction tr;
         assert(deployedBytecode.length, "deployedBytecode should be set");
-        tr.from = (from is null ? conn.eth_accounts[0] : from)[2 .. $].convTo!Address;
-        tr.data = deployedBytecode[2 .. $].hexToBytes ~ encode(argv);
+        tr.from = (from is null ? conn.eth_accounts[0] : from).convTo!Address;
+        tr.data = deployedBytecode ~ encode(argv);
         tr.gas = 6_721_975.BigInt;
         tr.value = 0.BigInt;
         auto trHash = conn.sendTransaction(tr);

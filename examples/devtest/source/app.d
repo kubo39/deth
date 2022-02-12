@@ -13,7 +13,7 @@ alias TestContract = Contract!TestABI;
 
 void main()
 {
-    TestContract.deployedBytecode = import(binPath);
+    TestContract.deployedBytecode = import(binPath).convTo!bytes;
     import std.process : environment;
 
     auto host = environment.get("RPC_HOST", "127.0.0.1");
