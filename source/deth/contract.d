@@ -128,7 +128,7 @@ struct ContractABI
         {
             fn.outputType = parseOutput(item[`outputs`]);
         }
-        fn.mutability = item[`stateMutability`].str;
+        fn.mutability = cast(Mutability) item[`stateMutability`].str;
         if (fn.mutability == Mutability.PAYABLE)
         {
             fn.payable = true;
@@ -154,10 +154,10 @@ struct ContractABI
                 cast(ubyte*) ev.signature.ptr, ev.signature.length);
     }
 
-    // string toString() const
-    // {
-    //     return contractName;
-    // }
+    string toString() const
+    {
+        return contractName;
+    }
 }
 
 private mixin template Signature()
@@ -175,14 +175,6 @@ private string getSignature(string name, string[] args)
 
 struct ContractFunction
 {
-
-    enum Mutability
-    {
-        PURE = "pure",
-        VIEW = "view",
-        PAYABLE = "payable",
-        NONPAYABLE = "nonpayable",
-    }
 
     string name;
     Selector selector;
@@ -306,4 +298,12 @@ unittest
 {
     assert("int256".toDType == "BigInt", "int256".toDType);
     assert("uint256".toDType == "BigInt", "uint256".toDType);
+}
+
+enum Mutability
+{
+    PURE = "pure",
+    VIEW = "view",
+    PAYABLE = "payable",
+    NONPAYABLE = "nonpayable",
 }
