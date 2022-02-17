@@ -191,6 +191,18 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return remoteAccounts.canFind(addr.convTo!string.ox);
 
     }
+
+    TransactionReceipt waitForTransactionReceipt(Hash txHash)
+    {
+        ulong count;
+        while (conn.getTransaction(txHash).blockHash.isNull)
+        {
+            enforce(count < 500, "Timeout for waiting tx"); // TODO: add timeout into connector
+            Thread.sleep(200.dur!"msecs");
+            count++;
+        }
+        return conn.getTransactionReceipt(txHash);
+    }
 }
 
 unittest
@@ -208,10 +220,7 @@ unittest
     };
     Hash txHash = conn.sendRawTransaction(tx);
     conn.getTransaction(txHash);
-    while (conn.getTransaction(txHash).blockHash.isNull)
-    {
-        Thread.sleep(250.dur!"msecs");
-    }
+    conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
 }
 
