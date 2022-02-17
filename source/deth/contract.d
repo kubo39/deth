@@ -322,42 +322,6 @@ enum Mutability
     NONPAYABLE = "nonpayable",
 }
 
-struct SendableTransaction
-{
-    Transaction tx;
-    private RPCConnector conn;
-
-    static foreach (f, t; [
-            "from": "Address",
-            "to": "Address",
-            "gas": "BigInt",
-            "gasPrice": "BigInt",
-            "value": "BigInt",
-            "data": "bytes",
-            "nonce": "ulong",
-        ])
-    {
-        mixin(createSetter(t, f, ".tx"));
-    }
-
-    Hash send()
-    {
-        if (tx.from.isNull)
-        {
-            assert(0, "Not implemeted");
-        }
-        if (conn.isUnlocked(tx.from.get))
-        {
-            return conn.sendRawTransaction(tx);
-        }
-        else if (conn.isUnlockedRemote(tx.from.get))
-        {
-            return conn.sendTransaction(tx);
-        }
-        assert(0, "бачок потік");
-    }
-}
-
 unittest
 {
     SendableTransaction tx;
