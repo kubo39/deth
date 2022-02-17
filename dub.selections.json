@@ -11,7 +11,7 @@
 		"memutils": "1.0.4",
 		"mir-linux-kernel": "1.0.1",
 		"openssl": "1.1.6+1.0.1g",
-		"secp256k1": "0.0.13",
+		"secp256k1": "1.0.0",
 		"stdx-allocator": "2.77.5",
 		"structjson": "2.98.1",
 		"taggedalgebraic": "0.11.22",
