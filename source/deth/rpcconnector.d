@@ -15,6 +15,7 @@ import deth.util.rlp : rlpEncode, cutBytes;
 import deth.util.types;
 import secp256k1 : secp256k1;
 import core.thread : Thread, dur, Fiber;
+import std.exception : enforce;
 
 enum BlockNumber
 {
@@ -195,13 +196,13 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     TransactionReceipt waitForTransactionReceipt(Hash txHash)
     {
         ulong count;
-        while (conn.getTransaction(txHash).blockHash.isNull)
+        while (getTransaction(txHash).blockHash.isNull)
         {
             enforce(count < 500, "Timeout for waiting tx"); // TODO: add timeout into connector
             Thread.sleep(200.dur!"msecs");
             count++;
         }
-        return conn.getTransactionReceipt(txHash);
+        return getTransactionReceipt(txHash).get;
     }
 }
 
