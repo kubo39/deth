@@ -321,10 +321,3 @@ enum Mutability
     PAYABLE = "payable",
     NONPAYABLE = "nonpayable",
 }
-
-unittest
-{
-    SendableTransaction tx;
-    tx.gas(123.BigInt).gas(456.BigInt);
-    assert(tx.tx.gas.get == 456.BigInt);
-}
