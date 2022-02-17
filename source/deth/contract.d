@@ -10,7 +10,7 @@ import std.algorithm : canFind;
 import deth.util.abi : encode, decode;
 import deth.util.types;
 import deth.rpcconnector;
-
+import deth.util.transaction : SendableTransaction;
 import keccak : keccak_256;
 
 alias Selector = ubyte[4];
@@ -327,14 +327,4 @@ unittest
     SendableTransaction tx;
     tx.gas(123.BigInt).gas(456.BigInt);
     assert(tx.tx.gas.get == 456.BigInt);
-}
-
-private string createSetter(string fieldType, string fieldName, string includedField = "")
-{
-    return q{
-        @property ref auto %s(%s value){
-            this%s.%s = value;
-            return this;
-        }
-    }.format(fieldName, fieldType, includedField, fieldName);
 }

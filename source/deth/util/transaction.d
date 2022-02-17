@@ -10,6 +10,7 @@ import std.conv : to;
 
 import deth.util.types;
 import deth.util.rlp : rlpEncode, cutBytes;
+import deth.rpcconnector : RPCConnector;
 
 struct Transaction
 {
@@ -101,4 +102,14 @@ struct SendableTransaction
         }
         assert(0, "бачок потік");
     }
+}
+
+private string createSetter(string fieldType, string fieldName, string includedField = "")
+{
+    return q{
+        @property ref auto %s(%s value){
+            this%s.%s = value;
+            return this;
+        }
+    }.format(fieldName, fieldType, includedField, fieldName);
 }
