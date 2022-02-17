@@ -22,7 +22,7 @@ void main()
 
     auto accounts = conn.remoteAccounts;
     test.get(accounts[0]).writeln;
-    test.set(33.BigInt).from(accounts[0]).send;
+    test.set(33.BigInt).send(accounts[0].From);
     test.get(accounts[0]).writeln;
     test.getSender(accounts[3]).convTo!string.writeln;
 }

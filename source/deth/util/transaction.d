@@ -7,6 +7,7 @@ import std.digest : toHexString;
 import std.array : replace;
 import std.format;
 import std.conv : to;
+import std.sumtype : SumType, match;
 
 import deth.util.types;
 import deth.util.rlp : rlpEncode, cutBytes;
@@ -68,26 +69,45 @@ struct Transaction
     }
 }
 
+static foreach (f, t; [
+        "From": "Address",
+        "To": "Address",
+        "Gas": "BigInt",
+        "GasPrice": "BigInt",
+        "Value": "BigInt",
+        "Data": "bytes",
+        "Nonce": "ulong",
+    ])
+{
+    mixin NamedParameter!(f, t);
+}
+
 struct SendableTransaction
 {
     Transaction tx;
     private RPCConnector conn;
 
-    static foreach (f, t; [
-            "from": "Address",
-            "to": "Address",
-            "gas": "BigInt",
-            "gasPrice": "BigInt",
-            "value": "BigInt",
-            "data": "bytes",
-            "nonce": "ulong",
-        ])
+    Hash send(ARGS...)(ARGS params)
     {
-        mixin(createSetter(t, f, ".tx"));
-    }
-
-    Hash send()
-    {
+        static foreach (i; 0 .. ARGS.length)
+        {
+            static if (is(ARGS[i] == From))
+                tx.from = params[i].value;
+            else static if (is(ARGS[i] == To))
+                tx.to = params[i].value;
+            else static if (is(ARGS[i] == Value))
+                tx.value = params[i].value;
+            else static if (is(ARGS[i] == Gas))
+                tx.gas = params[i].value;
+            else static if (is(ARGS[i] == GasPrice))
+                tx.gasPrice = params[i].value;
+            else static if (is(ARGS[i] == Nonce))
+                tx.nonce = params[i].value;
+            else static if (is(ARGS[i] == Data))
+                tx.data = params[i].value;
+            else
+                static assert(0, "Not supported param " ~ ARGS[i].stringof);
+        }
         if (tx.from.isNull)
         {
             assert(0, "Not implemeted");
@@ -104,12 +124,12 @@ struct SendableTransaction
     }
 }
 
-private string createSetter(string fieldType, string fieldName, string includedField = "")
+mixin template NamedParameter(string fieldName, string type)
 {
-    return q{
-        @property ref auto %s(%s value){
-            this%s.%s = value;
-            return this;
-        }
-    }.format(fieldName, fieldType, includedField, fieldName);
+    mixin(q{
+            struct %s
+            {
+            %s value;
+            }
+            }.format(fieldName, type));
 }
