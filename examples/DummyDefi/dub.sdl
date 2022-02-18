@@ -1,0 +1,6 @@
+name "dummydefi"
+description "DummyDefi project"
+authors "tynuk"
+copyright "Copyright © 2022, tynuk"
+license "proprietary"
+dependency "deth" version="*" path="../../"
