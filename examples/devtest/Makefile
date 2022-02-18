@@ -1,4 +1,4 @@
 
 build-sol:
-	solc --abi --bin --pretty-json --overwrite -o views/contractBuild/ contracts/*
+	solc --abi --bin --pretty-json --optimize --overwrite -o views/contractBuild/ contracts/*
 
