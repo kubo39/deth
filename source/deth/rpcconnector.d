@@ -114,44 +114,20 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return eth_getTransactionByHash(txHash.convTo!string.ox).convTo!TransactionInfo;
     }
 
-    private auto sendUntilInvalidSender(Transaction tx)
+    Hash sendRawTransaction(Transaction tx)
     {
         import keccak : keccak256;
         import deth.util.types;
 
-        while (1)
-        {
-            import rpc.core : RpcException;
+        bytes rlpTx = tx.serialize.rlpEncode;
+        wallet[tx.from.get].address.convTo!string.writeln;
+        auto signature = wallet[tx.from.get].sign(rlpTx);
 
-            try
-            {
-                bytes rlpTx = tx.serialize.rlpEncode;
-                Hash hash = rlpTx.keccak256;
-                auto signature = wallet[tx.from.get].sign(hash);
+        ubyte v = cast(ubyte)(27 + signature.recid);
 
-                ubyte v = cast(ubyte)(27 + signature.recid);
+        auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s).toHexString.ox;
 
-                auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s)
-                    .toHexString.ox;
-
-                return eth_sendRawTransaction(rawTx).convTo!Hash;
-            }
-            catch (RpcException e)
-            {
-                import std.string : indexOf;
-
-                if (!(e.msg.indexOf("invalid sender") >= 0))
-                {
-                    throw e;
-                }
-            }
-        }
-
-    }
-
-    Hash sendRawTransaction(Transaction tx)
-    {
-        return sendUntilInvalidSender(tx);
+        return eth_sendRawTransaction(rawTx).convTo!Hash;
     }
 
     Hash sendTransaction(Transaction tx)
@@ -209,8 +185,9 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org:8545");
+
     auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
-    auto pk = new secp256k1(pkValue);
+    auto pk = new secp256k1(pkValue[0 .. 32]);
     conn.wallet[pk.address] = pk;
     import deth.util.decimals;
 
