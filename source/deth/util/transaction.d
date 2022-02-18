@@ -7,9 +7,12 @@ import std.digest : toHexString;
 import std.array : replace;
 import std.format;
 import std.conv : to;
+import std.stdio;
+import std.exception;
 
 import deth.util.types;
 import deth.util.rlp : rlpEncode, cutBytes;
+import deth.rpcconnector : RPCConnector;
 
 struct Transaction
 {
@@ -65,4 +68,85 @@ struct Transaction
         encoded ~= data.get;
         return encoded;
     }
+}
+
+static foreach (f, t; [
+        "From": "Address",
+        "To": "Address",
+        "Gas": "BigInt",
+        "GasPrice": "BigInt",
+        "Value": "BigInt",
+        "Data": "bytes",
+        "Nonce": "ulong",
+    ])
+{
+    mixin NamedParameter!(f, t);
+}
+
+struct SendableTransaction
+{
+    Transaction tx;
+    private RPCConnector conn;
+
+    Hash send(ARGS...)(ARGS params)
+    {
+        static foreach (i; 0 .. ARGS.length)
+        {
+            static if (is(ARGS[i] == From))
+                tx.from = params[i].value;
+            else static if (is(ARGS[i] == To))
+                tx.to = params[i].value;
+            else static if (is(ARGS[i] == Value))
+                tx.value = params[i].value;
+            else static if (is(ARGS[i] == Gas))
+                tx.gas = params[i].value;
+            else static if (is(ARGS[i] == GasPrice))
+                tx.gasPrice = params[i].value;
+            else static if (is(ARGS[i] == Nonce))
+                tx.nonce = params[i].value;
+            else static if (is(ARGS[i] == Data))
+                tx.data = params[i].value;
+            else
+                static assert(0, "Not supported param " ~ ARGS[i].stringof);
+        }
+
+        if (tx.from.isNull)
+        {
+            auto accList = conn.accounts ~ conn.remoteAccounts;
+            enforce(accList.length > 0, " No accounts are unlocked");
+            tx.from = accList[0];
+        }
+        if (tx.nonce.isNull)
+        {
+            tx.nonce = conn.getTransactionCount(tx.from.get);
+        }
+        if (tx.gas.isNull)
+        {
+            tx.from.writeln;
+            tx.gas = conn.estimateGas(tx) * conn.gasEstimatePercentage / 100;
+        }
+        if (tx.gasPrice.isNull)
+        {
+            tx.gasPrice = conn.gasPrice;
+        }
+        if (conn.isUnlocked(tx.from.get))
+        {
+            return conn.sendRawTransaction(tx);
+        }
+        else if (conn.isUnlockedRemote(tx.from.get))
+        {
+            return conn.sendTransaction(tx);
+        }
+        assert(0);
+    }
+}
+
+mixin template NamedParameter(string fieldName, string type)
+{
+    mixin(q{
+            struct %s
+            {
+            %s value;
+            }
+            }.format(fieldName, type));
 }

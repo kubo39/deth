@@ -1,0 +1,9 @@
+{
+  "name": "DummyDefi",
+  "version": "1.0.0",
+  "main": " ",
+  "license": "MIT",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.5.0"
+  }
+}

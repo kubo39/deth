@@ -1,0 +1,17 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/dummydefi
+dummydefi.so
+dummydefi.dylib
+dummydefi.dll
+dummydefi.a
+dummydefi.lib
+dummydefi-test-*
+*.exe
+*.o
+*.obj
+*.lst
+node_modules/
+views/build/

@@ -15,6 +15,7 @@ import deth.util.rlp : rlpEncode, cutBytes;
 import deth.util.types;
 import secp256k1 : secp256k1;
 import core.thread : Thread, dur, Fiber;
+import std.exception : enforce;
 
 enum BlockNumber
 {
@@ -49,6 +50,7 @@ private interface IEthRPC
     string eth_sendTransaction(JSONValue tx);
     string eth_sendRawTransaction(string data);
     string eth_call(JSONValue tx, JSONValue blockNumber);
+    string eth_estimateGas(JSONValue tx, JSONValue blockNumber);
     JSONValue eth_getBlockByHash(string blockHash, bool isFull);
     JSONValue eth_getBlockByNumber(JSONValue blockNumber, bool isFull);
     JSONValue eth_getTransactionByHash(string hash);
@@ -72,6 +74,9 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     /// Private keys stored by connector
     secp256k1[Address] wallet;
 
+    /// coeficient used for estimated gas
+    uint gasEstimatePercentage = 100;
+
     this(string url)
     {
         super(url);
@@ -81,6 +86,17 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     {
         mixin BlockNumberToJSON!block;
         return eth_getBalance(address.convTo!string.ox, _block).BigInt;
+    }
+
+    BigInt estimateGas(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST)
+    {
+        mixin BlockNumberToJSON!block;
+        return super.eth_estimateGas(tx.toJSON, _block).BigInt;
+    }
+
+    BigInt gasPrice()
+    {
+        return super.eth_gasPrice.BigInt;
     }
 
     ubyte[] call(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST)
@@ -113,44 +129,21 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return eth_getTransactionByHash(txHash.convTo!string.ox).convTo!TransactionInfo;
     }
 
-    private auto sendUntilInvalidSender(Transaction tx)
+    Hash sendRawTransaction(Transaction tx)
     {
         import keccak : keccak256;
         import deth.util.types;
+        import std.bitmanip : nativeToBigEndian;
 
-        while (1)
-        {
-            import rpc.core : RpcException;
+        bytes rlpTx = tx.serialize.rlpEncode;
+        auto signature = wallet[tx.from.get].sign(rlpTx);
 
-            try
-            {
-                bytes rlpTx = tx.serialize.rlpEncode;
-                Hash hash = rlpTx.keccak256;
-                auto signature = wallet[tx.from.get].sign(hash);
+        ulong v = 27 + signature.recid;
 
-                ubyte v = cast(ubyte)(27 + signature.recid);
-
-                auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s)
-                    .toHexString.ox;
-
-                return eth_sendRawTransaction(rawTx).convTo!Hash;
-            }
-            catch (RpcException e)
-            {
-                import std.string : indexOf;
-
-                if (!(e.msg.indexOf("invalid sender") >= 0))
-                {
-                    throw e;
-                }
-            }
-        }
-
-    }
-
-    Hash sendRawTransaction(Transaction tx)
-    {
-        return sendUntilInvalidSender(tx);
+        auto rawTx = rlpEncode(
+                tx.serialize ~ v.nativeToBigEndian[].cutBytes
+                ~ signature.r.cutBytes ~ signature.s.cutBytes).toHexString.ox;
+        return eth_sendRawTransaction(rawTx).convTo!Hash;
     }
 
     Hash sendTransaction(Transaction tx)
@@ -187,17 +180,28 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     bool isUnlockedRemote(Address addr)
     {
-        auto remoteAccounts = eth_accounts;
-        return remoteAccounts.canFind(addr.convTo!string.ox);
+        return remoteAccounts.canFind(addr);
+    }
 
+    TransactionReceipt waitForTransactionReceipt(Hash txHash)
+    {
+        ulong count;
+        while (getTransaction(txHash).blockHash.isNull)
+        {
+            enforce(count < 500, "Timeout for waiting tx"); // TODO: add timeout into connector
+            Thread.sleep(200.dur!"msecs");
+            count++;
+        }
+        return getTransactionReceipt(txHash).get;
     }
 }
 
 unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org:8545");
+
     auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
-    auto pk = new secp256k1(pkValue);
+    auto pk = new secp256k1(pkValue[0 .. 32]);
     conn.wallet[pk.address] = pk;
     import deth.util.decimals;
 
@@ -208,10 +212,7 @@ unittest
     };
     Hash txHash = conn.sendRawTransaction(tx);
     conn.getTransaction(txHash);
-    while (conn.getTransaction(txHash).blockHash.isNull)
-    {
-        Thread.sleep(250.dur!"msecs");
-    }
+    conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
 }
 

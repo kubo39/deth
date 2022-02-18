@@ -10,7 +10,7 @@ import std.algorithm : canFind;
 import deth.util.abi : encode, decode;
 import deth.util.types;
 import deth.rpcconnector;
-
+import deth.util.transaction : SendableTransaction;
 import keccak : keccak_256;
 
 alias Selector = ubyte[4];
@@ -32,18 +32,12 @@ class Contract(ContractABI abi)
     mixin(allFunctions(abi));
 
     // Sends traansaction for deploy contract
-    static auto deploy(ARGS...)(RPCConnector conn, ARGS argv)
+    static auto deployTx(ARGS...)(RPCConnector conn, ARGS argv)
     {
-        string from = null;
         Transaction tx;
         assert(deployedBytecode.length, "deployedBytecode should be set");
-        tx.from = (from is null ? conn.eth_accounts[0] : from).convTo!Address;
         tx.data = deployedBytecode ~ encode(argv);
-        tx.gas = 6_721_975.BigInt;
-        tx.value = 0.BigInt;
-        auto txHash = conn.sendTransaction(tx);
-        auto address = conn.getTransactionReceipt(txHash).get.contractAddress.get;
-        return new Contract!abi(conn, address);
+        return SendableTransaction(tx, conn);
     }
 
     override string toString() const
@@ -63,15 +57,14 @@ class Contract(ContractABI abi)
         return conn.call(tx, BlockNumber.LATEST);
     }
 
-    auto sendMethod(Selector selector, ARGS...)(Address from, BigInt value, ARGS argv)
+    auto sendMethod(Selector selector, ARGS...)(ARGS argv)
     {
         Transaction tx;
-        tx.value = value;
-        tx.from = from;
         tx.data = selector[];
         tx.to = this.address;
         static if (ARGS.length != 0)
             tx.data = selector[] ~ encode(argv);
+        tx.data.get.convTo!string.writeln;
         return SendableTransaction(tx, conn);
     }
 }
@@ -79,17 +72,31 @@ class Contract(ContractABI abi)
 private string allFunctions(ContractABI abi)
 {
     string code = "";
+
+    code ~= q{
+        static auto %s
+        {
+            auto txHash = %s.send(argv);
+            auto addr = conn.waitForTransactionReceipt(txHash).contractAddress.get;
+            return new Contract!abi(conn, addr);
+        }
+    }.format(abi.deploySignature, abi.deployArgs);
+
     foreach (func; abi.functions)
     {
         if (func.constant)
         {
             auto returns = func.outputType.toDType;
+            auto dSignature = func.dSignature([
+                "Address from = Address.init", "BigInt value = 0.BigInt"
+            ]);
+            auto dargs = func.dargs("from", "value");
             code ~= q{
                 %s %s
                 {
                     return callMethod!(%s)%s.decode!%s;
                 }
-            }.format(returns, func.dSignature, func.selector, func.dargs, returns);
+            }.format(returns, dSignature, func.selector, dargs, returns);
         }
         else
         {
@@ -115,6 +122,27 @@ struct ContractABI
     {
         contractName = name;
         fromJSON(abi);
+    }
+
+    string deploySignature() const @property
+    {
+        string[] args = ["RPCConnector conn"];
+        foreach (i, t; constructorInputs)
+        {
+            args ~= t.toDType ~ " v" ~ i.to!string;
+        }
+        args ~= ["ARGS argv"];
+        return "deploy(ARGS...)".getSignature(args);
+    }
+
+    string deployArgs() const @property
+    {
+        string[] args = ["conn"];
+        foreach (i; 0 .. constructorInputs.length)
+        {
+            args ~= " v" ~ i.to!string;
+        }
+        return "deployTx".getSignature(args);
     }
 
     private void fromJSON(JSONValue abi)
@@ -198,25 +226,25 @@ struct ContractFunction
     bool constant;
     mixin Signature;
 
-    @property string dSignature()
+    string dSignature(string[] additional...)
     {
         string[] args = [];
         foreach (i, type; inputTypes)
         {
             args ~= type.toDType ~ " v" ~ i.to!string;
         }
-        args ~= ["Address from = Address.init", "BigInt value = 0.BigInt"];
+        args ~= additional;
         return name.getSignature(args);
     }
 
-    private @property string dargs()
+    private string dargs(string[] additional...)
     {
         string[] args = [];
         foreach (i, _; inputTypes)
         {
             args ~= " v" ~ i.to!string;
         }
-        args = ["from", "value"] ~ args;
+        args = additional ~ args;
         return "".getSignature(args);
     }
 }
@@ -320,57 +348,4 @@ enum Mutability
     VIEW = "view",
     PAYABLE = "payable",
     NONPAYABLE = "nonpayable",
-}
-
-struct SendableTransaction
-{
-    Transaction tx;
-    private RPCConnector conn;
-
-    static foreach (f, t; [
-            "from": "Address",
-            "to": "Address",
-            "gas": "BigInt",
-            "gasPrice": "BigInt",
-            "value": "BigInt",
-            "data": "bytes",
-            "nonce": "ulong",
-        ])
-    {
-        mixin(createSetter(t, f, ".tx"));
-    }
-
-    Hash send()
-    {
-        if (tx.from.isNull)
-        {
-            assert(0, "Not implemeted");
-        }
-        if (conn.isUnlocked(tx.from.get))
-        {
-            return conn.sendRawTransaction(tx);
-        }
-        else if (conn.isUnlockedRemote(tx.from.get))
-        {
-            return conn.sendTransaction(tx);
-        }
-        assert(0, "бачок потік");
-    }
-}
-
-unittest
-{
-    SendableTransaction tx;
-    tx.gas(123.BigInt).gas(456.BigInt);
-    assert(tx.tx.gas.get == 456.BigInt);
-}
-
-private string createSetter(string fieldType, string fieldName, string includedField = "")
-{
-    return q{
-        @property ref auto %s(%s value){
-            this%s.%s = value;
-            return this;
-        }
-    }.format(fieldName, fieldType, includedField, fieldName);
 }
