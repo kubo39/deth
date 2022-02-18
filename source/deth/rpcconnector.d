@@ -50,6 +50,7 @@ private interface IEthRPC
     string eth_sendTransaction(JSONValue tx);
     string eth_sendRawTransaction(string data);
     string eth_call(JSONValue tx, JSONValue blockNumber);
+    string eth_estimateGas(JSONValue tx, JSONValue blockNumber);
     JSONValue eth_getBlockByHash(string blockHash, bool isFull);
     JSONValue eth_getBlockByNumber(JSONValue blockNumber, bool isFull);
     JSONValue eth_getTransactionByHash(string hash);
@@ -73,6 +74,9 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     /// Private keys stored by connector
     secp256k1[Address] wallet;
 
+    /// coeficient used for estimated gas
+    uint gasEstimatePercentage = 100;
+
     this(string url)
     {
         super(url);
@@ -82,6 +86,17 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     {
         mixin BlockNumberToJSON!block;
         return eth_getBalance(address.convTo!string.ox, _block).BigInt;
+    }
+
+    BigInt estimateGas(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST)
+    {
+        mixin BlockNumberToJSON!block;
+        return super.eth_estimateGas(tx.toJSON, _block).BigInt;
+    }
+
+    BigInt gasPrice()
+    {
+        return super.eth_gasPrice.BigInt;
     }
 
     ubyte[] call(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST)
@@ -118,15 +133,16 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     {
         import keccak : keccak256;
         import deth.util.types;
+        import std.bitmanip : nativeToBigEndian;
 
         bytes rlpTx = tx.serialize.rlpEncode;
-        wallet[tx.from.get].address.convTo!string.writeln;
         auto signature = wallet[tx.from.get].sign(rlpTx);
 
-        ubyte v = cast(ubyte)(27 + signature.recid);
+        ulong v = 27 + signature.recid;
 
-        auto rawTx = rlpEncode(tx.serialize ~ [v] ~ signature.r ~ signature.s).toHexString.ox;
-
+        auto rawTx = rlpEncode(
+                tx.serialize ~ v.nativeToBigEndian[].cutBytes
+                ~ signature.r.cutBytes ~ signature.s.cutBytes).toHexString.ox;
         return eth_sendRawTransaction(rawTx).convTo!Hash;
     }
 
@@ -164,9 +180,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     bool isUnlockedRemote(Address addr)
     {
-        auto remoteAccounts = eth_accounts;
-        return remoteAccounts.canFind(addr.convTo!string.ox);
-
+        return remoteAccounts.canFind(addr);
     }
 
     TransactionReceipt waitForTransactionReceipt(Hash txHash)

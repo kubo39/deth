@@ -166,7 +166,7 @@ version (unittest)
         import std : toHexString;
 
         auto encoded = encode(argv).toHexString;
-        assert(expected == encoded);
+        assert(expected == encoded, encoded);
         assert(expected.length % 64 == 0);
     }
 }
@@ -184,6 +184,9 @@ unittest
             [[10, 20, 30], [40, 50, 60]], [90, 100]);
     runTest("0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000D48656C6C6F2C20776F726C642100000000000000000000000000000000000000",
             "Hello, world!");
+    ubyte[20] data;
+    data[19] = 0xab;
+    runTest("00000000000000000000000000000000000000000000000000000000000000AB", data);
 }
 
 unittest

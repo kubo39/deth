@@ -34,15 +34,11 @@ class Contract(ContractABI abi)
     // Sends traansaction for deploy contract
     static auto deploy(ARGS...)(RPCConnector conn, ARGS argv)
     {
-        string from = null;
         Transaction tx;
         assert(deployedBytecode.length, "deployedBytecode should be set");
-        tx.from = (from is null ? conn.eth_accounts[0] : from).convTo!Address;
         tx.data = deployedBytecode ~ encode(argv);
-        tx.gas = 6_721_975.BigInt;
-        tx.value = 0.BigInt;
-        auto txHash = conn.sendTransaction(tx);
-        auto address = conn.getTransactionReceipt(txHash).get.contractAddress.get;
+        auto txHash = SendableTransaction(tx, conn).send();
+        auto address = conn.waitForTransactionReceipt(txHash).contractAddress.get;
         return new Contract!abi(conn, address);
     }
 
@@ -66,12 +62,11 @@ class Contract(ContractABI abi)
     auto sendMethod(Selector selector, ARGS...)(Address from, BigInt value, ARGS argv)
     {
         Transaction tx;
-        tx.value = value;
-        tx.from = from;
         tx.data = selector[];
         tx.to = this.address;
         static if (ARGS.length != 0)
             tx.data = selector[] ~ encode(argv);
+        tx.data.get.convTo!string.writeln;
         return SendableTransaction(tx, conn);
     }
 }

@@ -7,7 +7,8 @@ import std.digest : toHexString;
 import std.array : replace;
 import std.format;
 import std.conv : to;
-import std.sumtype : SumType, match;
+import std.stdio;
+import std.exception;
 
 import deth.util.types;
 import deth.util.rlp : rlpEncode, cutBytes;
@@ -108,9 +109,25 @@ struct SendableTransaction
             else
                 static assert(0, "Not supported param " ~ ARGS[i].stringof);
         }
+
         if (tx.from.isNull)
         {
-            assert(0, "Not implemeted");
+            auto accList = conn.accounts ~ conn.remoteAccounts;
+            enforce(accList.length > 0, " No accounts are unlocked");
+            tx.from = accList[0];
+        }
+        if (tx.nonce.isNull)
+        {
+            tx.nonce = conn.getTransactionCount(tx.from.get);
+        }
+        if (tx.gas.isNull)
+        {
+            tx.from.writeln;
+            tx.gas = conn.estimateGas(tx) * conn.gasEstimatePercentage / 100;
+        }
+        if (tx.gasPrice.isNull)
+        {
+            tx.gasPrice = conn.gasPrice;
         }
         if (conn.isUnlocked(tx.from.get))
         {
@@ -120,7 +137,7 @@ struct SendableTransaction
         {
             return conn.sendTransaction(tx);
         }
-        assert(0, "бачок потік");
+        assert(0);
     }
 }
 
