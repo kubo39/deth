@@ -8,5 +8,6 @@ dependency "tynukrpc" version="~>1.2.0"
 dependency "secp256k1" version="2.1.0"
 targetType "library"
 dflags "-O5"
+
 subPackage "examples/devtest"
-subPackage "examples/dummydefi"
+subPackage "examples/DummyDefi"
