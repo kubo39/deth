@@ -59,7 +59,7 @@ class Contract(ContractABI abi)
         return conn.call(tx, BlockNumber.LATEST);
     }
 
-    auto sendMethod(Selector selector, ARGS...)(Address from, BigInt value, ARGS argv)
+    auto sendMethod(Selector selector, ARGS...)(ARGS argv)
     {
         Transaction tx;
         tx.data = selector[];
@@ -79,12 +79,16 @@ private string allFunctions(ContractABI abi)
         if (func.constant)
         {
             auto returns = func.outputType.toDType;
+            auto dSignature = func.dSignature([
+                "Address from = Address.init", "BigInt value = 0.BigInt"
+            ]);
+            auto dargs = func.dargs("from", "value");
             code ~= q{
                 %s %s
                 {
                     return callMethod!(%s)%s.decode!%s;
                 }
-            }.format(returns, func.dSignature, func.selector, func.dargs, returns);
+            }.format(returns, dSignature, func.selector, dargs, returns);
         }
         else
         {
@@ -193,25 +197,25 @@ struct ContractFunction
     bool constant;
     mixin Signature;
 
-    @property string dSignature()
+    string dSignature(string[] additional...)
     {
         string[] args = [];
         foreach (i, type; inputTypes)
         {
             args ~= type.toDType ~ " v" ~ i.to!string;
         }
-        args ~= ["Address from = Address.init", "BigInt value = 0.BigInt"];
+        args ~= additional;
         return name.getSignature(args);
     }
 
-    private @property string dargs()
+    private string dargs(string[] additional...)
     {
         string[] args = [];
         foreach (i, _; inputTypes)
         {
             args ~= " v" ~ i.to!string;
         }
-        args = ["from", "value"] ~ args;
+        args = additional ~ args;
         return "".getSignature(args);
     }
 }
