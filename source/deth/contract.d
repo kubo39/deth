@@ -74,7 +74,7 @@ private string allFunctions(ContractABI abi)
     string code = "";
 
     code ~= q{
-        auto %s
+        static auto %s
         {
             auto txHash = %s.send(argv);
             auto addr = conn.waitForTransactionReceipt(txHash).contractAddress.get;
