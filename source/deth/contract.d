@@ -32,14 +32,12 @@ class Contract(ContractABI abi)
     mixin(allFunctions(abi));
 
     // Sends traansaction for deploy contract
-    static auto deploy(ARGS...)(RPCConnector conn, ARGS argv)
+    static auto deployTx(ARGS...)(RPCConnector conn, ARGS argv)
     {
         Transaction tx;
         assert(deployedBytecode.length, "deployedBytecode should be set");
         tx.data = deployedBytecode ~ encode(argv);
-        auto txHash = SendableTransaction(tx, conn).send();
-        auto address = conn.waitForTransactionReceipt(txHash).contractAddress.get;
-        return new Contract!abi(conn, address);
+        return SendableTransaction(tx, conn);
     }
 
     override string toString() const
@@ -74,6 +72,16 @@ class Contract(ContractABI abi)
 private string allFunctions(ContractABI abi)
 {
     string code = "";
+
+    code ~= q{
+        auto %s
+        {
+            auto txHash = %s.send(argv);
+            auto addr = conn.waitForTransactionReceipt(txHash).contractAddress.get;
+            return new Contract!abi(conn, addr);
+        }
+    }.format(abi.deploySignature, abi.deployArgs);
+
     foreach (func; abi.functions)
     {
         if (func.constant)
@@ -114,6 +122,27 @@ struct ContractABI
     {
         contractName = name;
         fromJSON(abi);
+    }
+
+    string deploySignature() const @property
+    {
+        string[] args = ["RPCConnector conn"];
+        foreach (i, t; constructorInputs)
+        {
+            args ~= t.toDType ~ " v" ~ i.to!string;
+        }
+        args ~= ["ARGS argv"];
+        return "deploy(ARGS...)".getSignature(args);
+    }
+
+    string deployArgs() const @property
+    {
+        string[] args = ["conn"];
+        foreach (i; 0 .. constructorInputs.length)
+        {
+            args ~= " v" ~ i.to!string;
+        }
+        return "deployTx".getSignature(args);
     }
 
     private void fromJSON(JSONValue abi)
