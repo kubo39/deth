@@ -16,3 +16,7 @@ libdeth.a
 *.lst
 
 *.log
+./deth-test-library
+./examples/DummyDefi/dummydefi
+./examples/DummyDefi/deth_dummydefi
+./examples/devtest/deth_devtest
