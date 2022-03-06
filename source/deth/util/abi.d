@@ -171,6 +171,7 @@ version (unittest)
     }
 }
 
+@("solidity ABI encode")
 unittest
 {
     runTest("0000000000000000000000000000000000000000000000000000000000000122", 0x122);
@@ -238,6 +239,7 @@ void runTestDecode(T)(T a)
 
 }
 
+@("solidity ABI decode")
 unittest
 {
     ubyte[4] s = [1, 2, 3, 4];

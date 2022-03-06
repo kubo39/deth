@@ -196,6 +196,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
 }
 
+@("sending tx")
 unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org:8545");

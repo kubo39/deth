@@ -48,6 +48,7 @@ bytes cutBytes(bytes a)
     return a[i .. $];
 }
 
+@("cutting null bytes")
 unittest
 {
     bytes a = [1, 2, 3];
@@ -56,6 +57,7 @@ unittest
     assert(a.cutBytes == a.cutBytes);
 }
 
+@("rlp encode")
 unittest
 {
 

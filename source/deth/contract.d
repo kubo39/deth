@@ -332,6 +332,7 @@ private string toDType(string SolType)
     return DType;
 }
 
+@("type convertor toDType")
 unittest
 {
     assert("int256".toDType == "BigInt", "int256".toDType);

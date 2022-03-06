@@ -25,6 +25,7 @@ bytes hexToBytes(string s)
     return s.padLeft('0', s.length + s.length % 2).chunks(2).map!q{a.parse!ubyte(16)}.array;
 }
 
+@("hexToBytes")
 unittest
 {
     assert("0x123".hexToBytes == [0x1, 0x23]);
@@ -162,6 +163,7 @@ To convTo(To, _From)(const _From f)
     }
 }
 
+@("convTo")
 unittest
 {
     import std;
@@ -211,6 +213,7 @@ auto padRight(bytes data, ubyte b, ulong count)
         return data;
 }
 
+@("0x prefix")
 unittest
 {
     import std;

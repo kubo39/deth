@@ -23,6 +23,7 @@ mixin Converter!(18, "ether");
 mixin Converter!(9, "gwei");
 mixin Converter!(0, "wei");
 
+@("decimals conv")
 unittest
 {
 
