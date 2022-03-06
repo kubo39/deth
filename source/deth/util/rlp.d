@@ -48,6 +48,7 @@ bytes cutBytes(bytes a)
     return a[i .. $];
 }
 
+@("cutting null bytes")
 unittest
 {
     bytes a = [1, 2, 3];
@@ -56,6 +57,7 @@ unittest
     assert(a.cutBytes == a.cutBytes);
 }
 
+@("rlp encode")
 unittest
 {
 
@@ -71,9 +73,4 @@ unittest
     bytes[] d = cast(bytes[])[[1], [2, 3, 4], [123, 255]];
     assert(rlpEncode(d).toHexString == "C80183020304827BFF");
 
-}
-
-unittest
-{
-    writefln!"\033[1;32m%s\033[0m"(" Rlp test passed. ");
 }

@@ -15,17 +15,11 @@
 image: artyr453/arch-dub
 
 before_script:
-  pacman -Sy libsecp256k1 --noconfirm
+  - pacman -Sy libsecp256k1 --noconfirm
 
 stages:          # List of stages for jobs, and their order of execution
-  - build 
-  - test
+  - test 
   
-build-job:       # This job runs in the build stage, which runs first.
-  stage: build
-  script: 
-    - dub build
-    - dub build deth:devtest
 
 test-job:
   stage: test
@@ -36,5 +30,4 @@ test-job:
   script: 
     - dub upgrade
     - RPC_HOST=trufflesuite-ganache-cli dub test
-
     - RPC_HOST=trufflesuite-ganache-cli dub run deth:devtest 

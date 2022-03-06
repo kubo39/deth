@@ -25,6 +25,7 @@ bytes hexToBytes(string s)
     return s.padLeft('0', s.length + s.length % 2).chunks(2).map!q{a.parse!ubyte(16)}.array;
 }
 
+@("hexToBytes")
 unittest
 {
     assert("0x123".hexToBytes == [0x1, 0x23]);
@@ -162,6 +163,7 @@ To convTo(To, _From)(const _From f)
     }
 }
 
+@("convTo")
 unittest
 {
     import std;
@@ -211,6 +213,7 @@ auto padRight(bytes data, ubyte b, ulong count)
         return data;
 }
 
+@("0x prefix")
 unittest
 {
     import std;
@@ -260,11 +263,4 @@ struct Log
     Address address; //  DATA, 20 Bytes - address from which this log originated.
     bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
     Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)
-}
-
-unittest
-{
-    import std.stdio;
-
-    writefln!"\033[1;32m%s\033[0m"(" types test passed. ");
 }

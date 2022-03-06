@@ -171,6 +171,7 @@ version (unittest)
     }
 }
 
+@("solidity ABI encode")
 unittest
 {
     runTest("0000000000000000000000000000000000000000000000000000000000000122", 0x122);
@@ -187,13 +188,6 @@ unittest
     ubyte[20] data;
     data[19] = 0xab;
     runTest("00000000000000000000000000000000000000000000000000000000000000AB", data);
-}
-
-unittest
-{
-    import std.stdio;
-
-    writefln!"\033[1;32m%s\033[0m"(" abi encode test passed. ");
 }
 
 T decode(T)(ubyte[] data, size_t offsetShift = 0)
@@ -245,6 +239,7 @@ void runTestDecode(T)(T a)
 
 }
 
+@("solidity ABI decode")
 unittest
 {
     ubyte[4] s = [1, 2, 3, 4];
@@ -258,11 +253,4 @@ unittest
     ]);
     runTestDecode("HelloWorld!");
     runTestDecode(s);
-}
-
-unittest
-{
-    import std.stdio;
-
-    writefln!"\033[1;32m%s\033[0m"(" abi decode test passed. ");
 }

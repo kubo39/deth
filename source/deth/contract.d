@@ -315,10 +315,6 @@ private string parseTuple(JSONValue components)
     return `tuple(` ~ typesToJoin.join(',') ~ `)`;
 }
 
-unittest
-{
-}
-
 private string toDType(string SolType)
 {
     string DType = SolType.replace("tuple", "tuple!");
@@ -336,6 +332,7 @@ private string toDType(string SolType)
     return DType;
 }
 
+@("type convertor toDType")
 unittest
 {
     assert("int256".toDType == "BigInt", "int256".toDType);

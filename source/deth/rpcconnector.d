@@ -196,6 +196,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
 }
 
+@("sending tx")
 unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org:8545");
@@ -214,11 +215,4 @@ unittest
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
-}
-
-unittest
-{
-    import std.stdio;
-
-    writefln!"\033[1;32m%s\033[0m"(" rpc test passed. ");
 }

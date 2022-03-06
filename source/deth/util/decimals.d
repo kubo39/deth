@@ -23,6 +23,7 @@ mixin Converter!(18, "ether");
 mixin Converter!(9, "gwei");
 mixin Converter!(0, "wei");
 
+@("decimals conv")
 unittest
 {
 
@@ -31,11 +32,4 @@ unittest
 
     assert(10.gwei == "10_000_000_000".BigInt);
     assert(10.ether == "10_000_000_000_000_000_000".BigInt);
-}
-
-unittest
-{
-    import std.stdio;
-
-    writefln!"\033[1;32m%s\033[0m"(" decimal converter test passed. ");
 }
