@@ -215,10 +215,3 @@ unittest
     conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
 }
-
-unittest
-{
-    import std.stdio;
-
-    writefln!"\033[1;32m%s\033[0m"(" rpc test passed. ");
-}

@@ -72,8 +72,3 @@ unittest
     assert(rlpEncode(d).toHexString == "C80183020304827BFF");
 
 }
-
-unittest
-{
-    writefln!"\033[1;32m%s\033[0m"(" Rlp test passed. ");
-}

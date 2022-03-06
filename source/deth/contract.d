@@ -315,10 +315,6 @@ private string parseTuple(JSONValue components)
     return `tuple(` ~ typesToJoin.join(',') ~ `)`;
 }
 
-unittest
-{
-}
-
 private string toDType(string SolType)
 {
     string DType = SolType.replace("tuple", "tuple!");

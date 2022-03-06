@@ -189,13 +189,6 @@ unittest
     runTest("00000000000000000000000000000000000000000000000000000000000000AB", data);
 }
 
-unittest
-{
-    import std.stdio;
-
-    writefln!"\033[1;32m%s\033[0m"(" abi encode test passed. ");
-}
-
 T decode(T)(ubyte[] data, size_t offsetShift = 0)
 in (data.length % 32 == 0)
 {
@@ -258,11 +251,4 @@ unittest
     ]);
     runTestDecode("HelloWorld!");
     runTestDecode(s);
-}
-
-unittest
-{
-    import std.stdio;
-
-    writefln!"\033[1;32m%s\033[0m"(" abi decode test passed. ");
 }
