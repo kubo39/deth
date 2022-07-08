@@ -122,7 +122,6 @@ struct SendableTransaction
         }
         if (tx.gas.isNull)
         {
-            tx.from.writeln;
             tx.gas = conn.estimateGas(tx) * conn.gasEstimatePercentage / 100;
         }
         if (tx.gasPrice.isNull)

@@ -11,15 +11,15 @@ import deth.util.abi : encode, decode;
 import deth.util.types;
 import deth.rpcconnector;
 import deth.util.transaction : SendableTransaction;
-import keccak : keccak_256;
+import keccak : keccak_256, keccak256;
 
 alias Selector = ubyte[4];
 
-class Contract(ContractABI abi)
+alias NonABIContract = Contract!();
+class Contract(ContractABI abi = ContractABI.init)
 {
     Address address;
     private RPCConnector conn;
-
     static bytes deployedBytecode;
 
     this(RPCConnector conn, Address addr)
@@ -28,7 +28,10 @@ class Contract(ContractABI abi)
         this.address = addr;
     }
 
-    debug pragma(msg, allFunctions(abi));
+    version (unittest)
+    {
+        debug pragma(msg, allFunctions(abi));
+    }
     mixin(allFunctions(abi));
 
     // Sends traansaction for deploy contract
@@ -64,15 +67,31 @@ class Contract(ContractABI abi)
         tx.to = this.address;
         static if (ARGS.length != 0)
             tx.data = selector[] ~ encode(argv);
-        tx.data.get.convTo!string.writeln;
         return SendableTransaction(tx, conn);
+    }
+
+    auto callMethodS(string signature, Result = void, ARGS...)(ARGS argv)
+    {
+        static immutable selector = keccak256(cast(ubyte[]) signature)[0 .. 4];
+        auto data = callMethod!selector(Address.init, 0.BigInt, argv);
+        static if (is(Result == void))
+            return data;
+        else
+            return data.decode!Result;
+    }
+
+    auto sendMethodS(string signature, Result = void, ARGS...)(ARGS argv)
+    {
+        static immutable selector = keccak256(cast(ubyte[]) signature)[0 .. 4];
+        return sendMethod!selector(argv);
     }
 }
 
 private string allFunctions(ContractABI abi)
 {
     string code = "";
-
+    if (abi == ContractABI.init)
+        return code;
     code ~= q{
         static auto %s
         {
@@ -92,19 +111,19 @@ private string allFunctions(ContractABI abi)
             ]);
             auto dargs = func.dargs("from", "value");
             code ~= q{
-                %s %s
-                {
-                    return callMethod!(%s)%s.decode!%s;
-                }
+        %s %s
+        {
+            return callMethod!(%s)%s.decode!%s;
+        }
             }.format(returns, dSignature, func.selector, dargs, returns);
         }
         else
         {
             code ~= q{
-                SendableTransaction %s
-                {
-                    return sendMethod!(%s)%s;
-                }
+        SendableTransaction %s
+        {
+            return sendMethod!(%s)%s;
+        }
             }.format(func.dSignature, func.selector, func.dargs);
         }
     }
@@ -113,14 +132,17 @@ private string allFunctions(ContractABI abi)
 
 struct ContractABI
 {
-    string contractName;
+    string contractName = "Noname";
     string[] constructorInputs;
     ContractFunction[] functions;
     ContractEvent[] events;
 
-    this(JSONValue abi, string name = "Noname")
+    this(JSONValue abi, string name = null)
     {
-        contractName = name;
+        if (name !is null)
+        {
+            contractName = name;
+        }
         fromJSON(abi);
     }
 

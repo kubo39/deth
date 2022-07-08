@@ -3,7 +3,7 @@ module deth.util.abi;
 import std.traits : isInstanceOf, isIntegral, isBoolean, isStaticArray,
     isDynamicArray, FieldNameTuple, isAggregateType, Unconst;
 import std : ElementType;
-import std : to, writeln, writef, text;
+import std : to, text;
 import std : BigInt, toHex, replace;
 import std : map, join, fold;
 import std : array, iota;
