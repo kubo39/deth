@@ -199,7 +199,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 @("sending tx")
 unittest
 {
-    auto conn = new RPCConnector("https://rpc.qtestnet.org:8545");
+    auto conn = new RPCConnector("https://rpc.qtestnet.org/");
 
     auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
     auto pk = new secp256k1(pkValue[0 .. 32]);
