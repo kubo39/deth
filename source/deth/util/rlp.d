@@ -35,7 +35,7 @@ bytes lenToRlp(ulong l, ubyte o)
     }
 }
 
-bytes cutBytes(bytes a)
+bytes cutBytes(bytes a) pure
 {
     ulong i;
     for (i = 0; i < a.length; i++)
@@ -51,10 +51,25 @@ bytes cutBytes(bytes a)
 @("cutting null bytes")
 unittest
 {
-    bytes a = [1, 2, 3];
-    bytes b = [0, 0, 1, 2, 3];
-    assert(a.cutBytes == b.cutBytes);
-    assert(a.cutBytes == a.cutBytes);
+    struct Case
+    {
+        bytes a, b;
+    }
+
+    import deth.util.types : convTo;
+
+    Case[] cases = [
+        Case([1, 2, 3], [0, 0, 1, 2, 3]),
+        Case([1, 1, 0, 0, 1, 2, 3], [0, 0, 1, 1, 0, 0, 1, 2, 3]),
+        Case([45, 128, 0, 0, 1, 2, 3], [0, 0, 45, 128, 0, 0, 1, 2, 3]),
+        Case([1, 0], 256.convTo!bytes),
+        Case([1, 0, 0, 0, 0], (1L << 32).convTo!bytes),
+    ];
+    foreach (c; cases)
+    {
+        assert(c.a.dup.cutBytes == c.b.dup.cutBytes);
+        assert(c.a.dup.cutBytes == c.a.dup.cutBytes);
+    }
 }
 
 @("rlp encode")

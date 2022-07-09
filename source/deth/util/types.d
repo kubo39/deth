@@ -6,6 +6,8 @@ import std : toHexStringT = toHexString, LetterCase;
 import std.json : JSONValue;
 import std : Nullable, BigInt;
 import std.stdio;
+import std.bitmanip : nativeToBigEndian;
+
 public import deth.util.transaction : Transaction;
 
 alias toHexString = toHexStringT!(LetterCase.lower);
@@ -33,7 +35,7 @@ unittest
 
 To convTo(To, _From)(const _From f)
 {
-    import std.traits : Unconst;
+    import std.traits : Unconst, isIntegral;
 
     alias From = Unconst!_From;
     static if (is(From == bytes))
@@ -43,6 +45,14 @@ To convTo(To, _From)(const _From f)
             return f.toHexString;
         }
     }
+    static if (isIntegral!From)
+    {
+        static if (is(To == bytes))
+        {
+            return f.nativeToBigEndian[].dup;
+        }
+    }
+
     static if (is(From == Address))
     {
         static if (is(To == string))
