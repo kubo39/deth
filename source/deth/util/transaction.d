@@ -53,7 +53,7 @@ struct Transaction
         if (nonce.isNull)
             encoded ~= [[]];
         else
-            encoded ~= cutBytes(cast(bytes)[nonce.get]);
+            encoded ~= cutBytes(nonce.get.convTo!bytes);
 
         static immutable code = q{
             if(field.isNull)
