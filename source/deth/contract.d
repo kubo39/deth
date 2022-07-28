@@ -13,6 +13,8 @@ import deth.rpcconnector;
 import deth.util.transaction : SendableTransaction;
 import keccak : keccak_256, keccak256;
 
+import std.experimental.logger;
+
 alias Selector = ubyte[4];
 
 alias NonABIContract = Contract!();
@@ -74,6 +76,7 @@ class Contract(ContractABI abi = ContractABI.init)
     {
         static immutable selector = keccak256(cast(ubyte[]) signature)[0 .. 4];
         auto data = callMethod!selector(Address.init, 0.BigInt, argv);
+        logCall(signature);
         static if (is(Result == void))
             return data;
         else
@@ -83,7 +86,13 @@ class Contract(ContractABI abi = ContractABI.init)
     auto sendMethodS(string signature, Result = void, ARGS...)(ARGS argv)
     {
         static immutable selector = keccak256(cast(ubyte[]) signature)[0 .. 4];
+        logCall(signature);
         return sendMethod!selector(argv);
+    }
+
+    private void logCall(string selector)
+    {
+        tracef("Calling %s %s(0x%s)", selector, abi.contractName, this.address.convTo!string);
     }
 }
 
@@ -113,18 +122,18 @@ private string allFunctions(ContractABI abi)
             code ~= q{
         %s %s
         {
+            logCall("%s");
             return callMethod!(%s)%s.decode!%s;
-        }
-            }.format(returns, dSignature, func.selector, dargs, returns);
+        }}.format(returns, dSignature, func.signature, func.selector, dargs, returns);
         }
         else
         {
             code ~= q{
         SendableTransaction %s
         {
+            logCall("%s");
             return sendMethod!(%s)%s;
-        }
-            }.format(func.dSignature, func.selector, func.dargs);
+        }}.format(func.dSignature, func.signature, func.selector, func.dargs);
         }
     }
     return code;

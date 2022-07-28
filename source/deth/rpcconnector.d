@@ -16,6 +16,7 @@ import deth.util.types;
 import secp256k1 : secp256k1;
 import core.thread : Thread, dur, Fiber;
 import std.exception : enforce;
+import std.experimental.logger;
 
 enum BlockNumber
 {
@@ -136,6 +137,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         import std.bitmanip : nativeToBigEndian;
 
         bytes rlpTx = tx.serialize.rlpEncode;
+        logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
         auto signature = wallet[tx.from.get].sign(rlpTx);
 
         ulong v = 27 + signature.recid;
@@ -143,7 +145,10 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         auto rawTx = rlpEncode(
                 tx.serialize ~ v.nativeToBigEndian[].cutBytes
                 ~ signature.r.cutBytes ~ signature.s.cutBytes).toHexString.ox;
-        return eth_sendRawTransaction(rawTx).convTo!Hash;
+        logf("Rlp encoded signed tx %s", rawTx);
+        auto hash = eth_sendRawTransaction(rawTx).convTo!Hash;
+        tracef("sent tx %s", hash.convTo!string.ox);
+        return hash;
     }
 
     Hash sendTransaction(Transaction tx)
@@ -160,7 +165,10 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
             jtx["data"] = tx.data.get.convTo!string.ox;
         if (!tx.to.isNull)
             jtx["to"] = tx.to.get.convTo!string.ox;
-        return eth_sendTransaction(jtx).convTo!Hash;
+        logf("Json string: %s", jtx.toString);
+        auto hash = eth_sendTransaction(jtx).convTo!Hash;
+        tracef("sent tx %s", hash.convTo!string.ox);
+        return hash;
     }
 
     Address[] accounts()

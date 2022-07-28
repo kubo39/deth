@@ -5,15 +5,17 @@ import std.conv : to, text;
 import std.bigint : BigInt;
 import structjson : parseJSON;
 import deth;
+import std.experimental.logger;
 
 enum abiPath = "contractBuild/Test.abi";
 enum binPath = "contractBuild/Test.bin";
 
-static immutable TestABI = import(abiPath).parseJSON.ContractABI;
+static immutable TestABI = import(abiPath).parseJSON.ContractABI("Test");
 alias TestContract = Contract!TestABI;
 
 void main()
 {
+    sharedLog.logLevel = LogLevel.all;
     TestContract.deployedBytecode = import(binPath).convTo!bytes;
     import std.process : environment;
 
