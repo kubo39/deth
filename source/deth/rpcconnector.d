@@ -12,6 +12,8 @@ import std.stdio;
 import rpc.protocol.json;
 import std.array : replace;
 import deth.util.rlp : rlpEncode, cutBytes;
+import deth.wallet : Wallet;
+
 import deth.util.types;
 import secp256k1 : secp256k1;
 import core.thread : Thread, dur, Fiber;
@@ -73,7 +75,7 @@ private mixin template BlockNumberToJSON(alias block)
 class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 {
     /// Private keys stored by connector
-    secp256k1[Address] wallet;
+    Wallet wallet;
 
     /// coeficient used for estimated gas
     uint gasEstimatePercentage = 100;
@@ -107,7 +109,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
 
     ulong getTransactionCount(BlockParameter)(Address address,
-            BlockParameter block = BlockNumber.LATEST)
+        BlockParameter block = BlockNumber.LATEST)
     {
         mixin BlockNumberToJSON!block;
         return eth_getTransactionCount(address.toHexString.ox, _block)[2 .. $].to!ulong(16);
@@ -136,17 +138,8 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         import deth.util.types;
         import std.bitmanip : nativeToBigEndian;
 
-        bytes rlpTx = tx.serialize.rlpEncode;
-        logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
-        auto signature = wallet[tx.from.get].sign(rlpTx);
-
-        ulong v = 27 + signature.recid;
-
-        auto rawTx = rlpEncode(
-                tx.serialize ~ v.nativeToBigEndian[].cutBytes
-                ~ signature.r.cutBytes ~ signature.s.cutBytes).toHexString.ox;
-        logf("Rlp encoded signed tx %s", rawTx);
-        auto hash = eth_sendRawTransaction(rawTx).convTo!Hash;
+        auto rawTx = wallet.signTransaction(tx);
+        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
         return hash;
     }
@@ -173,7 +166,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     Address[] accounts()
     {
-        return wallet.keys;
+        return wallet.addresses;
     }
 
     Address[] remoteAccounts()
