@@ -197,10 +197,8 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org/");
+    conn.wallet.addPrivateKey("beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c");
 
-    auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
-    auto pk = new secp256k1(pkValue[0 .. 32]);
-    conn.wallet[pk.address] = pk;
     import deth.util.decimals;
 
     Transaction tx = {
