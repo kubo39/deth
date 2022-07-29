@@ -5,7 +5,7 @@ import std.experimental.logger;
 import std.exception : enforce;
 import secp256k1 : secp256k1;
 import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
-import deth.util.rlp : rlpEncode;
+import deth.util.rlp : rlpEncode, cutBytes;
 
 /// struct to store several private keys in a single wallet
 struct Wallet
@@ -39,9 +39,10 @@ struct Wallet
     /// rms address from wallet
     /// Params:
     ///   addr = address to remove
-    void remove(Address[] addr)
+    void remove(Address[] addr...)
     {
-        addr.remove(addr);
+        foreach (a; addr)
+            addrs.remove(a);
     }
 
     /// Returns: list address stored in wallet;
@@ -57,6 +58,10 @@ struct Wallet
     /// Returns: rlp encoded signed transaction
     bytes signTransaction(Transaction tx, Address signer = Address.init)
     {
+        import keccak : keccak256;
+        import deth.util.types;
+        import std.bitmanip : nativeToBigEndian;
+
         if (!tx.from.isNull)
         {
             signer = tx.from.get;
@@ -78,5 +83,6 @@ struct Wallet
                 ~ signature.r.cutBytes ~ signature.s.cutBytes);
 
         logf("Rlp encoded signed tx %s", rawTx.toHexString.ox);
+        return rawTx;
     }
 }

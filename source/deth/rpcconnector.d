@@ -134,10 +134,6 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     Hash sendRawTransaction(Transaction tx)
     {
-        import keccak : keccak256;
-        import deth.util.types;
-        import std.bitmanip : nativeToBigEndian;
-
         auto rawTx = wallet.signTransaction(tx);
         auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
