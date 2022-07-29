@@ -60,7 +60,6 @@ struct Wallet
     {
         import keccak : keccak256;
         import deth.util.types;
-        import std.bitmanip : nativeToBigEndian;
 
         if (!tx.from.isNull)
         {
@@ -79,7 +78,7 @@ struct Wallet
         ulong v = 27 + signature.recid;
 
         auto rawTx = rlpEncode(
-            tx.serialize ~ v.nativeToBigEndian[].cutBytes
+            tx.serialize ~ v.convTo!bytes.cutBytes
                 ~ signature.r.cutBytes ~ signature.s.cutBytes);
 
         logf("Rlp encoded signed tx %s", rawTx.toHexString.ox);
