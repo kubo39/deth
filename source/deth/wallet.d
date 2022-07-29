@@ -21,7 +21,7 @@ struct Wallet
     /// 
     /// Params:
     ///   key = private key stored in ubyte[32], string, ubyte[]
-    void addPrivateKey(T : Hash)(T key)
+    void addPrivateKey(T)(T key)
     {
         static if (is(T : Hash))
             auto c = new secp256k1(key);

@@ -198,11 +198,11 @@ unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org/");
     conn.wallet.addPrivateKey("beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c");
-
+    auto address = conn.accounts[0];
     import deth.util.decimals;
 
     Transaction tx = {
-        from: pk.address, nonce: conn.getTransactionCount(pk.address), to: "0xdddddddd0d0d0d0d0d0d0ddddddddd"
+        from: address, nonce: conn.getTransactionCount(address), to: "0xdddddddd0d0d0d0d0d0d0ddddddddd"
             .convTo!Address, value: 16.wei, gas: "50000".BigInt, gasPrice: 50.gwei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast."
     };
