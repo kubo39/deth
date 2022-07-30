@@ -14,7 +14,7 @@ import std.array : replace;
 import deth.util.rlp : rlpEncode, cutBytes;
 import deth.wallet : Wallet;
 
-import deth.util.types;
+import deth.util;
 import secp256k1 : secp256k1;
 import core.thread : Thread, dur, Fiber;
 import std.exception : enforce;
@@ -198,15 +198,14 @@ unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org/");
     conn.wallet.addPrivateKey("beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c");
-    auto address = conn.accounts[0];
     import deth.util.decimals;
 
     Transaction tx = {
-        from: address, nonce: conn.getTransactionCount(address), to: "0xdddddddd0d0d0d0d0d0d0ddddddddd"
-            .convTo!Address, value: 16.wei, gas: "50000".BigInt, gasPrice: 50.gwei,
-        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast."
+        to: "0xdddddddd0d0d0d0d0d0d0ddddddddd".convTo!Address,
+        value: 16.wei,
+        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
     };
-    Hash txHash = conn.sendRawTransaction(tx);
+    auto txHash = SendableTransaction(tx, conn).send();
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
