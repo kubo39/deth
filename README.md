@@ -5,8 +5,20 @@ D library for interacting to contracts
 ## Dependencies
 - [libsecp256k1](https://github.com/bitcoin-core/secp256k1/)
 
+## TODO
+ - [ ] ddoc 
+ - [ ] add attributes const, pure, etc - 0.0.8-alpha
+ - [ ] Artifacts and ContractABI improvments - 0.0.9-alpha
+ - [ ] improvements for sending tx(waiter, nonce increment) - 0.0.10-alpha
+ - [ ] fix decode(add more types) - 0.0.11-alpha
+ - [ ] libriry linking - 0.0.12-alpha
+ - [ ] ... 
+ - [ ] Test Template for testing contracts - 1.0.0-rc000
+ - [ ] ...
+ - [ ] Template for testing contracts - 1.0.0
+
 ## Example
-```
+```d
 import std.stdio;
 
 import deth;
