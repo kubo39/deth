@@ -12,7 +12,9 @@ import std.stdio;
 import rpc.protocol.json;
 import std.array : replace;
 import deth.util.rlp : rlpEncode, cutBytes;
-import deth.util.types;
+import deth.wallet : Wallet;
+
+import deth.util;
 import secp256k1 : secp256k1;
 import core.thread : Thread, dur, Fiber;
 import std.exception : enforce;
@@ -73,7 +75,7 @@ private mixin template BlockNumberToJSON(alias block)
 class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 {
     /// Private keys stored by connector
-    secp256k1[Address] wallet;
+    Wallet wallet;
 
     /// coeficient used for estimated gas
     uint gasEstimatePercentage = 100;
@@ -107,7 +109,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
 
     ulong getTransactionCount(BlockParameter)(Address address,
-            BlockParameter block = BlockNumber.LATEST)
+        BlockParameter block = BlockNumber.LATEST)
     {
         mixin BlockNumberToJSON!block;
         return eth_getTransactionCount(address.toHexString.ox, _block)[2 .. $].to!ulong(16);
@@ -132,21 +134,8 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     Hash sendRawTransaction(Transaction tx)
     {
-        import keccak : keccak256;
-        import deth.util.types;
-        import std.bitmanip : nativeToBigEndian;
-
-        bytes rlpTx = tx.serialize.rlpEncode;
-        logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
-        auto signature = wallet[tx.from.get].sign(rlpTx);
-
-        ulong v = 27 + signature.recid;
-
-        auto rawTx = rlpEncode(
-                tx.serialize ~ v.nativeToBigEndian[].cutBytes
-                ~ signature.r.cutBytes ~ signature.s.cutBytes).toHexString.ox;
-        logf("Rlp encoded signed tx %s", rawTx);
-        auto hash = eth_sendRawTransaction(rawTx).convTo!Hash;
+        auto rawTx = wallet.signTransaction(tx);
+        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
         return hash;
     }
@@ -173,7 +162,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 
     Address[] accounts()
     {
-        return wallet.keys;
+        return wallet.addresses;
     }
 
     Address[] remoteAccounts()
@@ -204,22 +193,38 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
 }
 
-@("sending tx")
+@("sending legacy tx")
 unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org/");
-
-    auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".hexToBytes;
-    auto pk = new secp256k1(pkValue[0 .. 32]);
-    conn.wallet[pk.address] = pk;
+    conn.wallet.addPrivateKey("beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c");
     import deth.util.decimals;
 
     Transaction tx = {
-        from: pk.address, nonce: conn.getTransactionCount(pk.address), to: "0xdddddddd0d0d0d0d0d0d0ddddddddd"
-            .convTo!Address, value: 16.wei, gas: "50000".BigInt, gasPrice: 50.gwei,
-        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast."
+        to: "0xdddddddd0d0d0d0d0d0d0ddddddddd".convTo!Address,
+        value: 16.wei,
+        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
     };
-    Hash txHash = conn.sendRawTransaction(tx);
+    auto txHash = SendableTransaction(tx, conn).send();
+    conn.getTransaction(txHash);
+    conn.waitForTransactionReceipt(txHash);
+    assert(!conn.getTransactionReceipt(txHash).isNull);
+}
+
+@("sending eip-155 tx")
+unittest
+{
+    auto conn = new RPCConnector("https://rpc.qtestnet.org/");
+    conn.wallet.addPrivateKey("beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347d");
+    import deth.util.decimals;
+
+    Transaction tx = {
+        to: "0xdddddddd0d0d0d0d0d0d0ddddddddd".convTo!Address,
+        value: 16.wei,
+        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
+        chainid: conn.net_version.to!ulong,
+    };
+    auto txHash = SendableTransaction(tx, conn).send();
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
