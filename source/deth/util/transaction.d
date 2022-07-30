@@ -23,6 +23,7 @@ struct Transaction
     Nullable!BigInt value;
     Nullable!bytes data = [];
     Nullable!ulong nonce;
+    Nullable!ulong chainid;
 
     invariant
     {
@@ -66,6 +67,9 @@ struct Transaction
             mixin(code.replace("field", field));
         }
         encoded ~= data.get;
+        if(!chainid.isNull){
+            encoded ~= [chainid.get.convTo!bytes.cutBytes, [], []];
+        }
         return encoded;
     }
 }

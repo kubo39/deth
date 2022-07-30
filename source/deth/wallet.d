@@ -74,12 +74,23 @@ struct Wallet
         bytes rlpTx = tx.serialize.rlpEncode;
         logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
         auto signature = c.sign(rlpTx);
-
-        ulong v = 27 + signature.recid;
-
-        auto rawTx = rlpEncode(
-            tx.serialize ~ v.convTo!bytes.cutBytes
-                ~ signature.r.cutBytes ~ signature.s.cutBytes);
+        bytes rawTx;
+        if (tx.chainid.isNull)
+        {
+            ulong v = 27 + signature.recid;
+            rawTx = rlpEncode(
+                tx.serialize ~ v.convTo!bytes.cutBytes
+                    ~ signature.r.cutBytes ~ signature.s.cutBytes);
+        }
+        else
+        {
+            /// eip 155 signing
+            ulong v = signature.recid + tx.chainid.get * 2 + 35;
+            rlpTx = rlpEncode(rawTx[0 .. $ - 3] ~ [
+                    v.convTo!bytes.cutBytes, signature.r.cutBytes,
+                    signature.s.cutBytes
+                ]);
+        }
 
         logf("Rlp encoded signed tx %s", rawTx.toHexString.ox);
         return rawTx;
