@@ -79,11 +79,12 @@ unittest
     assert(rlpEncode([
             cast(bytes) "cat", cast(bytes) "dog", cast(bytes) "dogg\0y",
             cast(bytes) "man"
-            ]).toHexString == "D38363617483646F6786646F67670079836D616E");
+        ]).toHexString == "D38363617483646F6786646F67670079836D616E");
     assert(rlpEncode([
             cast(bytes) "ccatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatcatat",
             cast(bytes) "dog"
-            ]).toHexString == "F84BB84563636174636174636174636174636174636174636174636174636174636174636174636174636174636174636174636174636174636174636174636174636174636174617483646F67");
+        ]).toHexString == "F84BB845636361746361746361746361746361746361746361746361746361746"
+        ~ "36174636174636174636174636174636174636174636174636174636174636174636174636174617483646F67");
     assert(rlpEncode([cast(bytes) "cat", cast(bytes) ""]).toHexString == "C58363617480");
     bytes[] d = cast(bytes[])[[1], [2, 3, 4], [123, 255]];
     assert(rlpEncode(d).toHexString == "C80183020304827BFF");
