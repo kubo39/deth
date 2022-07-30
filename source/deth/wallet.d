@@ -86,7 +86,7 @@ struct Wallet
         {
             /// eip 155 signing
             ulong v = signature.recid + tx.chainid.get * 2 + 35;
-            rlpTx = rlpEncode(rawTx[0 .. $ - 3] ~ [
+            rawTx = rlpEncode(tx.serialize[0 .. $ - 3] ~ [
                     v.convTo!bytes.cutBytes, signature.r.cutBytes,
                     signature.s.cutBytes
                 ]);
