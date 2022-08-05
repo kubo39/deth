@@ -146,7 +146,7 @@ struct ContractABI
     ContractFunction[] functions;
     ContractEvent[] events;
 
-    static auto load(string file)(string name = null, string[] path = [])
+    static auto load(string file)(string name = null, string[] path = []) @safe
     {
         import structjson : parseJSON;
 
@@ -158,14 +158,14 @@ struct ContractABI
         return ContractABI(o, name);
     }
 
-    this(string jsontext, string name = null)
+    this(string jsontext, string name = null) @safe
     {
         import structjson : parseJSON;
 
         this(jsontext.parseJSON, name);
     }
 
-    this(JSONValue abi, string name = null)
+    this(JSONValue abi, string name = null) @safe
     {
         if (name !is null)
         {
@@ -174,7 +174,7 @@ struct ContractABI
         fromJSON(abi);
     }
 
-    string deploySignature() const @property
+    string deploySignature() const @property pure
     {
         string[] args = ["RPCConnector conn"];
         foreach (i, t; constructorInputs)
@@ -185,7 +185,7 @@ struct ContractABI
         return "deploy(ARGS...)".getSignature(args);
     }
 
-    string deployArgs() const @property
+    string deployArgs() const @property pure @safe
     {
         string[] args = ["conn"];
         foreach (i; 0 .. constructorInputs.length)
@@ -195,10 +195,10 @@ struct ContractABI
         return "deployTx".getSignature(args);
     }
 
-    private void fromJSON(JSONValue abi)
+    private void fromJSON(JSONValue abi) @safe pure
     {
         assert(abi.type == JSONType.array);
-        JSONValue[] items = abi.array;
+        JSONValue[] items = ()@trusted{return abi.array;}();
         foreach (i; 0 .. items.length)
         {
             string type = items[i][`type`].str;
@@ -211,7 +211,7 @@ struct ContractABI
         }
     }
 
-    private void functionFromJson(JSONValue item)
+    private void functionFromJson(JSONValue item) @safe pure
     {
         ContractFunction fn;
 
@@ -230,20 +230,20 @@ struct ContractABI
         }
         fn.inputTypes = item[`inputs`].parseInputs;
         fn.name = item[`name`].str;
-        keccak256(fn.selector, cast(ubyte[]) fn.signature);
+        keccak256(fn.selector, cast(ubyte[]) fn.signature.dup);
         functions ~= fn;
     }
 
-    private void eventFromJson(JSONValue item)
+    private void eventFromJson(JSONValue item) @safe  pure
     {
         ContractEvent ev;
         ev.inputTypes = item[`inputs`].parseInputs;
         ev.indexedInputTypes = item[`inputs`].parseInputs!(a => a[`indexed`].boolean);
         ev.name = item[`name`].str;
-        keccak256(ev.sigHash, cast(ubyte[]) ev.signature);
+        keccak256(ev.sigHash, cast(ubyte[]) ev.signature.dup);
     }
 
-    string toString() const
+    string toString() const pure @safe nothrow @nogc
     {
         return contractName;
     }
@@ -251,13 +251,13 @@ struct ContractABI
 
 private mixin template Signature()
 {
-    @property auto signature()
+    @property auto signature() @safe
     {
         return getSignature(name, inputTypes);
     }
 }
 
-private string getSignature(string name, string[] args)
+private string getSignature(string name, string[] args) @safe pure
 {
     return name ~ `(` ~ args.join(',') ~ `)`;
 }
@@ -274,7 +274,7 @@ struct ContractFunction
     bool constant;
     mixin Signature;
 
-    string dSignature(string[] additional...)
+    string dSignature(string[] additional...) @safe pure
     {
         string[] args = [];
         foreach (i, type; inputTypes)
@@ -285,7 +285,7 @@ struct ContractFunction
         return name.getSignature(args);
     }
 
-    private string dargs(string[] additional...)
+    private string dargs(string[] additional...) @safe pure
     {
         string[] args = [];
         foreach (i, _; inputTypes)
@@ -306,10 +306,10 @@ struct ContractEvent
     mixin Signature;
 }
 
-private string parseOutput(JSONValue outputs)
+private string parseOutput(JSONValue outputs) @safe pure
 {
     string[] outputTypes = [];
-    JSONValue[] outputsObjs = outputs.array;
+    JSONValue[] outputsObjs = ()@trusted{return outputs.array;}() ;
     foreach (JSONValue i; outputsObjs)
     {
         auto outputType = i[`type`].str;
@@ -325,13 +325,13 @@ private string parseOutput(JSONValue outputs)
 
 }
 
-private string[] parseInputs(alias filter = null)(JSONValue inputs)
+private string[] parseInputs(alias filter = null)(JSONValue inputs) @safe pure
 {
     import std.traits : isCallable;
 
     string[] inputTypes = [];
     assert(inputs.type == JSONType.array);
-    foreach (JSONValue input; inputs.array)
+    foreach (JSONValue input;  ()@trusted{return inputs.array;}() )
     {
         auto inputType = input[`type`].str;
         if (inputType.canFind("tuple"))
@@ -347,10 +347,10 @@ private string[] parseInputs(alias filter = null)(JSONValue inputs)
     return inputTypes;
 }
 
-private string parseTuple(JSONValue components)
+private string parseTuple(JSONValue components) @safe pure
 {
     string[] typesToJoin = [];
-    foreach (type; components.array)
+    foreach (type; ()@trusted{return components.array;}())
     {
         auto typeName = type[`type`].str;
         if (typeName.canFind("tuple"))
@@ -363,7 +363,7 @@ private string parseTuple(JSONValue components)
     return `tuple(` ~ typesToJoin.join(',') ~ `)`;
 }
 
-private string toDType(string SolType)
+private string toDType(string SolType) @safe pure
 {
     string DType = SolType.replace("tuple", "tuple!");
     DType = DType.replace("bytes", "ubyte[]");
