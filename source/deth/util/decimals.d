@@ -2,7 +2,7 @@ module deth.util.decimals;
 
 import std.string : format;
 
-auto toWei(ulong decimals, T)(T value)
+auto toWei(ulong decimals, T)(T value) pure nothrow @safe
 {
     import std.bigint : BigInt;
 
@@ -12,7 +12,7 @@ auto toWei(ulong decimals, T)(T value)
 mixin template Converter(ulong decimal, string name)
 {
     mixin(q{
-        auto %s(T)(T v)
+        pragma(inline, true) auto %s(T)(T v) pure nothrow @safe
         {
             return v.toWei!%d;
         }

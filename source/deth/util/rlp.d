@@ -4,7 +4,7 @@ import std;
 
 alias bytes = ubyte[];
 
-bytes rlpEncode(bytes[] a)
+bytes rlpEncode(const bytes[] a) pure nothrow @safe
 {
     bytes answer = [];
     foreach (item; a)
@@ -21,7 +21,7 @@ bytes rlpEncode(bytes[] a)
     return lenToRlp(answer.length, 0xc0) ~ answer;
 }
 
-bytes lenToRlp(ulong l, ubyte o)
+bytes lenToRlp(ulong l, ubyte o) pure nothrow @safe
 {
     if (l < 56)
     {
@@ -35,7 +35,7 @@ bytes lenToRlp(ulong l, ubyte o)
     }
 }
 
-bytes cutBytes(bytes a) pure
+bytes cutBytes(const bytes a) pure nothrow @safe
 {
     ulong i;
     for (i = 0; i < a.length; i++)
@@ -45,7 +45,7 @@ bytes cutBytes(bytes a) pure
             break;
         }
     }
-    return a[i .. $];
+    return a[i .. $].dup;
 }
 
 @("cutting null bytes")

@@ -16,7 +16,7 @@ alias Address = ubyte[20];
 alias Hash = ubyte[32];
 alias bytes = ubyte[];
 
-bytes hexToBytes(string s)
+bytes hexToBytes(string s) @safe pure
 {
     import std : chunks, map, array, startsWith;
     import std.range : padLeft;
@@ -27,18 +27,26 @@ bytes hexToBytes(string s)
     return s.padLeft('0', s.length + s.length % 2).chunks(2).map!q{a.parse!ubyte(16)}.array;
 }
 
+string toHex(const(BigInt) x) @safe pure
+{
+    import std.array : appender;
+    auto outbuff = appender!string();
+    x.toString(outbuff, "%X");
+    return outbuff[];
+}
+
 @("hexToBytes")
 unittest
 {
     assert("0x123".hexToBytes == [0x1, 0x23]);
 }
 
-To convTo(To, _From)(const _From f)
+To convTo(To, _From)(const _From f) @safe pure
 {
     import std.traits : Unconst, isIntegral;
 
     alias From = Unconst!_From;
-    static if (is(From == bytes))
+    static if (is(From == bytes) || is(From == const(ubyte)[]))
     {
         static if (is(To == string))
         {
@@ -57,7 +65,7 @@ To convTo(To, _From)(const _From f)
     {
         static if (is(To == string))
         {
-            return (cast(bytes) f).toHexString.to!string;
+            return f.toHexString.to!string;
         }
         static if (is(To == bytes))
         {
@@ -68,7 +76,7 @@ To convTo(To, _From)(const _From f)
     {
         static if (is(To == string))
         {
-            return (cast(bytes) f).toHexString.to!string;
+            return f.toHexString.to!string;
         }
         static if (is(To == bytes))
         {
@@ -76,7 +84,7 @@ To convTo(To, _From)(const _From f)
         }
     }
     // BigInt Part
-    import std.bigint : BigInt, toHex;
+    import std.bigint : BigInt;
 
     static if (is(From == BigInt))
     {
@@ -100,13 +108,13 @@ To convTo(To, _From)(const _From f)
     {
         static if (is(To == Address))
         {
-            Address[] v = cast(Address[]) f.hexToBytes().padLeft(0, 20);
-            return v[0];
+            Address v = f.hexToBytes().padLeft(0, 20)[0..20];
+            return v;
         }
         static if (is(To == Hash))
         {
-            Hash[] v = cast(Hash[]) f.hexToBytes().padLeft(0, 32);
-            return v[0];
+            Hash v = f.hexToBytes().padLeft(0, 32)[0..32];
+            return v;
         }
         static if (is(To == bytes))
         {
@@ -118,56 +126,60 @@ To convTo(To, _From)(const _From f)
         static if (is(To == TransactionReceipt))
         {
             TransactionReceipt tx;
-            tx.transactionIndex = f[`transactionIndex`].str[2 .. $].to!ulong(16);
-            tx.from = f[`from`].str[2 .. $].convTo!Address;
-            tx.blockHash = f[`blockHash`].str[2 .. $].convTo!Hash;
-            tx.blockNumber = f[`blockNumber`].str[2 .. $].to!ulong(16);
-            if (!f[`to`].isNull)
-                tx.to = f[`to`].str[2 .. $].convTo!Address;
-            tx.cumulativeGasUsed = f[`cumulativeGasUsed`].str.BigInt;
-            tx.gasUsed = f[`gasUsed`].str.BigInt;
-            if (!f[`contractAddress`].isNull)
-                tx.contractAddress = f[`contractAddress`].str[2 .. $].convTo!Address;
-            tx.logsBloom = f[`logsBloom`].str[2 .. $].hexToBytes;
-            tx.logs = new Log[f[`logs`].array.length];
-            foreach (i, log; f[`logs`].array)
-            {
-                tx.logs[i].removed = log[`removed`].boolean;
-                tx.logs[i].address = log[`address`].str[2 .. $].convTo!Address;
-                tx.logs[i].data = log[`data`].str[2 .. $].hexToBytes;
-                tx.logs[i].topics = [];
-                foreach (topic; log[`topics`].array)
+            () @trusted {
+                tx.transactionIndex = f[`transactionIndex`].str[2 .. $].to!ulong(16);
+                tx.from = f[`from`].str[2 .. $].convTo!Address;
+                tx.blockHash = f[`blockHash`].str[2 .. $].convTo!Hash;
+                tx.blockNumber = f[`blockNumber`].str[2 .. $].to!ulong(16);
+                if (!f[`to`].isNull)
+                    tx.to = f[`to`].str[2 .. $].convTo!Address;
+                tx.cumulativeGasUsed = f[`cumulativeGasUsed`].str.BigInt;
+                tx.gasUsed = f[`gasUsed`].str.BigInt;
+                if (!f[`contractAddress`].isNull)
+                    tx.contractAddress = f[`contractAddress`].str[2 .. $].convTo!Address;
+                tx.logsBloom = f[`logsBloom`].str[2 .. $].hexToBytes;
+                tx.logs = new Log[f[`logs`].array.length];
+                foreach (i, log; f[`logs`].array)
                 {
-                    tx.logs[i].topics ~= topic.str[2 .. $].convTo!Hash;
+                    tx.logs[i].removed = log[`removed`].boolean;
+                    tx.logs[i].address = log[`address`].str[2 .. $].convTo!Address;
+                    tx.logs[i].data = log[`data`].str[2 .. $].hexToBytes;
+                    tx.logs[i].topics = [];
+                    foreach (topic; log[`topics`].array)
+                    {
+                        tx.logs[i].topics ~= topic.str[2 .. $].convTo!Hash;
+                    }
                 }
-            }
+            }();
             return tx;
         }
         static if (is(To == TransactionInfo))
         {
             TransactionInfo info;
-            if (!f[`to`].isNull)
-                info.to = f[`to`].str.convTo!Address;
-            if (`blockNumber` in f && !f[`blockNumber`].isNull)
-            {
-                info.blockHash = f[`blockHash`].str.convTo!Hash;
-                info.blockNumber = f[`blockNumber`].str[2 .. $].to!ulong(16);
-                info.transactionIndex = f[`transactionIndex`].str[2 .. $].to!ulong(16);
+            ()@trusted {
+                if (!f[`to`].isNull)
+                    info.to = f[`to`].str.convTo!Address;
+                if (`blockNumber` in f && !f[`blockNumber`].isNull)
+                {
+                    info.blockHash = f[`blockHash`].str.convTo!Hash;
+                    info.blockNumber = f[`blockNumber`].str[2 .. $].to!ulong(16);
+                    info.transactionIndex = f[`transactionIndex`].str[2 .. $].to!ulong(16);
 
-            }
+                }
 
-            info.from = f[`from`].str.convTo!Address;
-            info.input = f[`input`].str.convTo!bytes;
+                info.from = f[`from`].str.convTo!Address;
+                info.input = f[`input`].str.convTo!bytes;
 
-            info.gas = f[`gas`].str.BigInt;
-            info.gasPrice = f[`gasPrice`].str.BigInt;
-            info.value = f[`value`].str.BigInt;
+                info.gas = f[`gas`].str.BigInt;
+                info.gasPrice = f[`gasPrice`].str.BigInt;
+                info.value = f[`value`].str.BigInt;
 
-            info.nonce = f[`nonce`].str[2 .. $].to!ulong(16);
+                info.nonce = f[`nonce`].str[2 .. $].to!ulong(16);
 
-            info.v = f[`v`].str[2 .. $].to!ulong(16);
-            info.r = f[`r`].str.convTo!Hash;
-            info.s = f[`s`].str.convTo!Hash;
+                info.v = f[`v`].str[2 .. $].to!ulong(16);
+                info.r = f[`r`].str.convTo!Hash;
+                info.s = f[`s`].str.convTo!Hash;
+            }();
             return info;
         }
     }
@@ -194,12 +206,12 @@ unittest
     assert(!__traits(compiles, addr.convTo!T), `shouldn't compile with undefined conv pair`);
 }
 
-pure auto ox(T)(T t)
+auto ox(T)(const T t) pure @safe 
 {
     return `0x` ~ t[];
 }
 
-auto padLeft(bytes data, ubyte b, ulong count)
+bytes padLeft(const bytes data, ubyte b, ulong count) pure @safe 
 {
     if (count > data.length)
     {
@@ -208,10 +220,10 @@ auto padLeft(bytes data, ubyte b, ulong count)
         return pad ~ data;
     }
     else
-        return data;
+        return data.dup;
 }
 
-auto padRight(bytes data, ubyte b, ulong count)
+bytes padRight(const bytes data, ubyte b, ulong count) pure @safe
 {
     if (count > data.length)
     {
@@ -220,7 +232,7 @@ auto padRight(bytes data, ubyte b, ulong count)
         return data ~ pad;
     }
     else
-        return data;
+        return data.dup;
 }
 
 @("0x prefix")

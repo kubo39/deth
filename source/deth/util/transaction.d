@@ -32,7 +32,7 @@ struct Transaction
         assert(value.isNull || value.get >= 0);
     }
 
-    JSONValue toJSON()
+    JSONValue toJSON() pure const @safe
     {
         string[string] result;
         static foreach (field; [
@@ -48,7 +48,7 @@ struct Transaction
         return result.JSONValue;
     }
 
-    bytes[] serialize()
+    bytes[] serialize() pure const @safe
     {
         bytes[] encoded = [];
         if (nonce.isNull)
@@ -66,8 +66,9 @@ struct Transaction
         {
             mixin(code.replace("field", field));
         }
-        encoded ~= data.get;
-        if(!chainid.isNull){
+        encoded ~= data.get.dup;
+        if (!chainid.isNull)
+        {
             encoded ~= [chainid.get.convTo!bytes.cutBytes, [], []];
         }
         return encoded;
@@ -92,7 +93,7 @@ struct SendableTransaction
     Transaction tx;
     private RPCConnector conn;
 
-    Hash send(ARGS...)(ARGS params)
+    Hash send(ARGS...)(ARGS params) @safe
     {
         static foreach (i; 0 .. ARGS.length)
         {

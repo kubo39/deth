@@ -11,7 +11,7 @@ import deth.util.abi : encode, decode;
 import deth.util.types;
 import deth.rpcconnector;
 import deth.util.transaction : SendableTransaction;
-import keccak : keccak_256, keccak256;
+import keccak : keccak256;
 
 import std.experimental.logger;
 
@@ -211,8 +211,7 @@ struct ContractABI
         }
         fn.inputTypes = item[`inputs`].parseInputs;
         fn.name = item[`name`].str;
-        keccak_256(fn.selector.ptr, fn.selector.length,
-                cast(ubyte*) fn.signature.ptr, fn.signature.length);
+        keccak256(fn.selector, cast(ubyte[]) fn.signature);
         functions ~= fn;
     }
 
@@ -222,8 +221,7 @@ struct ContractABI
         ev.inputTypes = item[`inputs`].parseInputs;
         ev.indexedInputTypes = item[`inputs`].parseInputs!(a => a[`indexed`].boolean);
         ev.name = item[`name`].str;
-        keccak_256(ev.sigHash.ptr, ev.sigHash.length,
-                cast(ubyte*) ev.signature.ptr, ev.signature.length);
+        keccak256(ev.sigHash, cast(ubyte[]) ev.signature);
     }
 
     string toString() const
