@@ -12,7 +12,7 @@ struct Wallet
 {
     private secp256k1[Address] addrs;
 
-    this(ARGS...)(ARGS argv)
+    this(ARGS...)(ARGS argv) @safe
     {
         foreach (v; argv)
             addPrivateKey(v);
@@ -21,7 +21,7 @@ struct Wallet
     /// 
     /// Params:
     ///   key = private key stored in ubyte[32], string, ubyte[]
-    void addPrivateKey(T)(T key)
+    void addPrivateKey(T)(T key) @safe
     {
         static if (is(T : Hash))
             auto c = new secp256k1(key);
@@ -39,14 +39,14 @@ struct Wallet
     /// rms address from wallet
     /// Params:
     ///   addr = address to remove
-    void remove(Address[] addr...)
+    void remove(Address[] addr...) @safe
     {
         foreach (a; addr)
             addrs.remove(a);
     }
 
     /// Returns: list address stored in wallet;
-    @property Address[] addresses()
+    @property Address[] addresses() const pure @safe nothrow
     {
         return addrs.keys;
     }
@@ -56,7 +56,7 @@ struct Wallet
     ///   tx =  tx to sign
     ///   signer = address which key will be used to sign if tx hasn't store from field
     /// Returns: rlp encoded signed transaction
-    bytes signTransaction(Transaction tx, Address signer = Address.init)
+    bytes signTransaction(const Transaction tx, Address signer = Address.init) @safe pure
     {
         import keccak : keccak256;
         import deth.util.types;
@@ -64,22 +64,22 @@ struct Wallet
         if (!tx.from.isNull)
         {
             signer = tx.from.get;
-            tracef("address is choosed from tx field %s", signer.convTo!string.ox);
+            debug tracef("address is choosed from tx field %s", signer.convTo!string.ox);
         }
         else
-            tracef("address is choosed from optional argument %s", signer.convTo!string.ox);
+            debug tracef("address is choosed from optional argument %s", signer.convTo!string.ox);
         enforce(signer in addrs, "Address %s not found", signer.convTo!string.ox);
 
         auto c = addrs[signer];
         bytes rlpTx = tx.serialize.rlpEncode;
-        logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
+        debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
         auto signature = c.sign(rlpTx);
         bytes rawTx;
         if (tx.chainid.isNull)
         {
             ulong v = 27 + signature.recid;
             rawTx = rlpEncode(
-                tx.serialize ~ v.convTo!bytes.cutBytes
+                    tx.serialize ~ v.convTo!bytes.cutBytes
                     ~ signature.r.cutBytes ~ signature.s.cutBytes);
         }
         else
@@ -89,10 +89,9 @@ struct Wallet
             rawTx = rlpEncode(tx.serialize[0 .. $ - 3] ~ [
                     v.convTo!bytes.cutBytes, signature.r.cutBytes,
                     signature.s.cutBytes
-                ]);
+                    ]);
         }
 
-        logf("Rlp encoded signed tx %s", rawTx.toHexString.ox);
         return rawTx;
     }
 }

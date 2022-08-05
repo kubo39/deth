@@ -12,7 +12,7 @@ import deth.util.types;
 /// SLOT SIZE 32 bytes
 enum SS = 32;
 
-bytes encode(ARGS...)(ARGS args_)
+bytes encode(ARGS...)(const ARGS args_) pure @safe
 {
     EncodingResult res;
     auto args = args_.tuplelize;
@@ -37,7 +37,7 @@ struct EncodingResult
     bytes value = []; /// static encoded
     bytes data = []; /// dynamic encoded
 
-    EncodingResult opOpAssign(string op)(EncodingResult a)
+    EncodingResult opOpAssign(string op)(const EncodingResult a) pure @safe
     {
         static if (op == "~")
         {
@@ -48,12 +48,12 @@ struct EncodingResult
     }
 }
 
-EncodingResult encodeUnit(T)(T v)
+EncodingResult encodeUnit(T)(const T v) pure @safe
 {
     EncodingResult result;
     static if (isBoolean!T || isIntegral!T)
     {
-        result.value = v.BigInt.convTo!bytes.padLeft(0, SS).array;
+        result.value = v.BigInt.convTo!bytes.padLeft(0, SS);
     }
     else static if (isStaticArray!T && is(ElementType!T == Unconst!ubyte))
     {
@@ -108,7 +108,7 @@ EncodingResult encodeUnit(T)(T v)
     return result;
 }
 
-auto tuplelize(ARGS...)(ARGS argv)
+private auto tuplelize(ARGS...)(const ARGS argv) pure nothrow @safe
 {
     auto code()
     {
@@ -123,7 +123,7 @@ auto tuplelize(ARGS...)(ARGS argv)
     mixin(`return ` ~ code ~ `;`);
 }
 
-auto tuplelizeT(T)(T v)
+private auto tuplelizeT(T)(const T v) pure nothrow @safe
 {
     import std : tuple;
 
@@ -161,7 +161,7 @@ auto tuplelizeT(T)(T v)
 version (unittest)
 {
 
-    void runTest(ARGS...)(string expected, ARGS argv)
+    void runTest(ARGS...)(const string expected, const ARGS argv)
     {
         import std : toHexString;
 
@@ -247,7 +247,7 @@ unittest
     runTest("00000000000000000000000000000000000000000000000000000000000000AB", data);
 }
 
-T decode(T)(ubyte[] data, size_t offsetShift = 0)
+T decode(T)(ubyte[] data, size_t offsetShift = 0) pure @safe
 in (data.length % 32 == 0)
 {
     static if (is(T == void))
