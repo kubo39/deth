@@ -146,6 +146,25 @@ struct ContractABI
     ContractFunction[] functions;
     ContractEvent[] events;
 
+    static auto load(string file)(string name = null, string[] path = [])
+    {
+        import structjson : parseJSON;
+
+        auto o = import(file).parseJSON;
+        foreach (f; path)
+        {
+            o = o[f];
+        }
+        return ContractABI(o, name);
+    }
+
+    this(string jsontext, string name = null)
+    {
+        import structjson : parseJSON;
+
+        this(jsontext.parseJSON, name);
+    }
+
     this(JSONValue abi, string name = null)
     {
         if (name !is null)

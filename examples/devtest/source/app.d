@@ -3,14 +3,13 @@ import std.array : replace;
 import std.stdio;
 import std.conv : to, text;
 import std.bigint : BigInt;
-import structjson : parseJSON;
 import deth;
 import std.experimental.logger;
 
 enum abiPath = "contractBuild/Test.abi";
 enum binPath = "contractBuild/Test.bin";
 
-static immutable TestABI = import(abiPath).parseJSON.ContractABI("Test");
+static immutable TestABI = ContractABI.load!abiPath("Test");
 alias TestContract = Contract!TestABI;
 
 void main()
