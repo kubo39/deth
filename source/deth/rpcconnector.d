@@ -85,29 +85,39 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         super(url);
     }
 
-    BigInt getBalance(BlockParameter)(ubyte[20] address, BlockParameter block = BlockNumber.LATEST) @safe
+    /// Wrapper for eth_getBalance
+    /// Returns: count of native tokens on balance
+    BigInt getBalance(BlockParameter)(Address address, BlockParameter block = BlockNumber.LATEST) @safe
     {
         mixin BlockNumberToJSON!block;
         return eth_getBalance(address.convTo!string.ox, _block).BigInt;
     }
 
+    /// Wrapper for eth_estimateGas
     BigInt estimateGas(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
     {
         mixin BlockNumberToJSON!block;
         return super.eth_estimateGas(tx.toJSON, _block).BigInt;
     }
 
+    /// Wrapper for eth_gasPrice
     BigInt gasPrice() @safe
     {
         return super.eth_gasPrice.BigInt;
     }
 
+    /// Wrapper for eth_call
+    /// Returns: encoded in bytes result of call
     ubyte[] call(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
     {
         mixin BlockNumberToJSON!block;
         return super.eth_call(tx.toJSON, _block)[2 .. $].convTo!bytes;
     }
 
+    /// Wrapper for eth_getTrasactionCount
+    /// Params:
+    ///   address = address of user
+    /// Returns: tx count
     ulong getTransactionCount(BlockParameter)(Address address,
         BlockParameter block = BlockNumber.LATEST) @safe
     {
@@ -115,16 +125,20 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return eth_getTransactionCount(address.toHexString.ox, _block)[2 .. $].to!ulong(16);
     }
 
+    /// Wrapper for eth_getTransactionReceipt
+    /// Params:
+    ///   h = hash of transaction
+    /// Returns: TransactionReceipt if tx mined else null
     Nullable!TransactionReceipt getTransactionReceipt(Hash h) @safe
     {
         JSONValue a = eth_getTransactionReceipt(h.convTo!string.ox);
-        if (a.isNull)
+        Nullable!TransactionReceipt tx;
+        if (!a.isNull)
         {
-            Nullable!TransactionReceipt tx;
-            return tx;
+            tx = Nullable!TransactionReceipt(a.convTo!TransactionReceipt);
         }
 
-        return Nullable!TransactionReceipt(a.convTo!TransactionReceipt);
+        return tx;
     }
 
     auto getTransaction(Hash txHash) @safe
@@ -132,6 +146,12 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return eth_getTransactionByHash(txHash.convTo!string.ox).convTo!TransactionInfo;
     }
 
+    /// Wrapper for eth_sendRawTransaction
+    /// signs transaction  and sends it
+    /// signer is tx.from
+    /// Params:
+    ///   tx = Transaction wanted to be signed and sent
+    /// Returns: Hash of transaction
     Hash sendRawTransaction(const Transaction tx) @safe
     {
         auto rawTx = wallet.signTransaction(tx);
@@ -140,6 +160,10 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return hash;
     }
 
+    /// Wrapper for method eth_sendTransaction
+    /// Params:
+    ///   tx = Transaction to send
+    /// Returns: Hash of sended tx
     Hash sendTransaction(const Transaction tx) @safe
     {
 
@@ -160,26 +184,41 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return hash;
     }
 
+    /// Returns: array with addresses which PK is stored in wallet
     Address[] accounts() const @safe
     {
         return wallet.addresses;
     }
 
+    /// Wrapper for eth_accounts
+    /// Returns: array with addresses which PK is stored on node
     Address[] remoteAccounts() @safe
     {
         return eth_accounts.map!(a => a.convTo!Address).array;
     }
 
+    /// Checks if address is in wallet
+    /// Params:
+    ///   addr = address wanted to check
+    /// Returns: true if address is in wallet and vice versa
     bool isUnlocked(Address addr) const @safe
     {
         return accounts.canFind(addr);
     }
 
+    /// Checks if address is stored on node
+    /// Params:
+    ///   addr = address wanted to check
+    /// Returns: true if address is stored on node and vice versa
     bool isUnlockedRemote(Address addr) @safe
     {
         return remoteAccounts.canFind(addr);
     }
 
+    /// Wait tx to be mined to block
+    /// Params:
+    ///   txHash = hash of the transaction
+    /// Returns: TransactionReceipt of mined transaction or throws an exception
     TransactionReceipt waitForTransactionReceipt(Hash txHash) @safe
     {
         ulong count;
