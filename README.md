@@ -6,7 +6,7 @@ D library for interacting to contracts
 - [libsecp256k1](https://github.com/bitcoin-core/secp256k1/)
 
 ## TODO
- - [ ] ddoc
+ - [x] ddoc
  - [x] add attributes const, pure, etc - 0.0.8-alpha
  - [ ] Artifacts and ContractABI improvments - 0.0.9-alpha
  - [ ] improvements for sending tx(waiter, nonce increment) - 0.0.10-alpha
