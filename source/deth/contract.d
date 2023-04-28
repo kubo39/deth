@@ -144,6 +144,8 @@ private string allFunctions(ContractABI abi)
     return code;
 }
 
+/// structure presenting contract's abi
+/// contains abi for contructor, functions, events
 struct ContractABI
 {
     string contractName = "Noname";
