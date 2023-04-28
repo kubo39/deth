@@ -17,7 +17,12 @@ import std.experimental.logger;
 
 alias Selector = ubyte[4];
 
+/// Alias for Contract without ABI
 alias NonABIContract = Contract!();
+
+///     
+/// Params: 
+///   abi = abi of contract  
 class Contract(ContractABI abi = ContractABI.init)
 {
     Address address;
@@ -139,6 +144,8 @@ private string allFunctions(ContractABI abi)
     return code;
 }
 
+/// structure presenting contract's abi
+/// contains abi for contructor, functions, events
 struct ContractABI
 {
     string contractName = "Noname";
@@ -198,7 +205,7 @@ struct ContractABI
     private void fromJSON(JSONValue abi) @safe pure
     {
         assert(abi.type == JSONType.array);
-        JSONValue[] items = ()@trusted{return abi.array;}();
+        JSONValue[] items = () @trusted { return abi.array; }();
         foreach (i; 0 .. items.length)
         {
             string type = items[i][`type`].str;
@@ -234,7 +241,7 @@ struct ContractABI
         functions ~= fn;
     }
 
-    private void eventFromJson(JSONValue item) @safe  pure
+    private void eventFromJson(JSONValue item) @safe pure
     {
         ContractEvent ev;
         ev.inputTypes = item[`inputs`].parseInputs;
@@ -309,7 +316,7 @@ struct ContractEvent
 private string parseOutput(JSONValue outputs) @safe pure
 {
     string[] outputTypes = [];
-    JSONValue[] outputsObjs = ()@trusted{return outputs.array;}() ;
+    JSONValue[] outputsObjs = () @trusted { return outputs.array; }();
     foreach (JSONValue i; outputsObjs)
     {
         auto outputType = i[`type`].str;
@@ -331,7 +338,7 @@ private string[] parseInputs(alias filter = null)(JSONValue inputs) @safe pure
 
     string[] inputTypes = [];
     assert(inputs.type == JSONType.array);
-    foreach (JSONValue input;  ()@trusted{return inputs.array;}() )
+    foreach (JSONValue input; ()@trusted { return inputs.array; }())
     {
         auto inputType = input[`type`].str;
         if (inputType.canFind("tuple"))
@@ -350,7 +357,7 @@ private string[] parseInputs(alias filter = null)(JSONValue inputs) @safe pure
 private string parseTuple(JSONValue components) @safe pure
 {
     string[] typesToJoin = [];
-    foreach (type; ()@trusted{return components.array;}())
+    foreach (type; ()@trusted { return components.array; }())
     {
         auto typeName = type[`type`].str;
         if (typeName.canFind("tuple"))

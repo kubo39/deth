@@ -12,6 +12,10 @@ import deth.util.types;
 /// SLOT SIZE 32 bytes
 enum SS = 32;
 
+/// function for abi encoding
+/// Params:
+///   args_ = arguments for solidity function to be encoded
+/// Returns: byte string with encoded data
 bytes encode(ARGS...)(const ARGS args_) pure @safe
 {
     EncodingResult res;
@@ -32,7 +36,7 @@ bytes encode(ARGS...)(const ARGS args_) pure @safe
     return encoded;
 }
 
-struct EncodingResult
+private struct EncodingResult
 {
     bytes value = []; /// static encoded
     bytes data = []; /// dynamic encoded
@@ -57,7 +61,7 @@ EncodingResult encodeUnit(T)(const T v) pure @safe
     }
     else static if (isStaticArray!T && is(ElementType!T == Unconst!ubyte))
     {
-        result.value = v[].padLeft(0, SS);
+        result.value = v.dup.padLeft(0, SS);
     }
     else static if (isStaticArray!T)
     {
@@ -161,7 +165,7 @@ private auto tuplelizeT(T)(const T v) pure nothrow @safe
 version (unittest)
 {
 
-    void runTest(ARGS...)(const string expected, const ARGS argv)
+    private void runTest(ARGS...)(const string expected, const ARGS argv)
     {
         import std : toHexString;
 
@@ -246,7 +250,11 @@ unittest
     data[19] = 0xab;
     runTest("00000000000000000000000000000000000000000000000000000000000000AB", data);
 }
-
+/// 
+/// Params:
+///   T    = type of decoding
+///   data = bytes which presenting encoded data of type T
+/// Returns: decoded result
 T decode(T)(ubyte[] data, size_t offsetShift = 0) pure @safe
 in (data.length % 32 == 0)
 {
@@ -289,7 +297,7 @@ in (data.length % 32 == 0)
     }
 }
 
-void runTestDecode(T)(T a)
+private void runTestDecode(T)(T a)
 {
     auto got = a.encode.decode!T;
     assert(got == a, got.to!string);

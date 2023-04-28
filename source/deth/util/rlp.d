@@ -4,6 +4,10 @@ import std;
 
 alias bytes = ubyte[];
 
+/// 
+/// Params:
+///   a = massive of bytes; could be data or rlp encoded bytes
+/// Returns: rlp encoded bytes
 bytes rlpEncode(const bytes[] a) pure nothrow @safe
 {
     bytes answer = [];
@@ -21,7 +25,7 @@ bytes rlpEncode(const bytes[] a) pure nothrow @safe
     return lenToRlp(answer.length, 0xc0) ~ answer;
 }
 
-bytes lenToRlp(ulong l, ubyte o) pure nothrow @safe
+private bytes lenToRlp(ulong l, ubyte o) pure nothrow @safe
 {
     if (l < 56)
     {
@@ -29,7 +33,7 @@ bytes lenToRlp(ulong l, ubyte o) pure nothrow @safe
     }
     else
     {
-        bytes binL = l.nativeToBigEndian.cutBytes;
+        bytes binL = l.nativeToBigEndian.dup.cutBytes;
         ubyte lenOfLen = cast(ubyte)(binL.length + o + 55);
         return lenOfLen ~ binL;
     }
