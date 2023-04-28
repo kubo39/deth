@@ -14,7 +14,7 @@ alias TestContract = Contract!TestABI;
 
 void main()
 {
-    sharedLog.logLevel = LogLevel.all;
+    globalLogLevel = LogLevel.all;
     TestContract.deployedBytecode = import(binPath).convTo!bytes;
     import std.process : environment;
 

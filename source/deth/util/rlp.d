@@ -29,7 +29,7 @@ bytes lenToRlp(ulong l, ubyte o) pure nothrow @safe
     }
     else
     {
-        bytes binL = l.nativeToBigEndian.cutBytes;
+        bytes binL = l.nativeToBigEndian.dup.cutBytes;
         ubyte lenOfLen = cast(ubyte)(binL.length + o + 55);
         return lenOfLen ~ binL;
     }

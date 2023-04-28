@@ -57,7 +57,7 @@ EncodingResult encodeUnit(T)(const T v) pure @safe
     }
     else static if (isStaticArray!T && is(ElementType!T == Unconst!ubyte))
     {
-        result.value = v[].padLeft(0, SS);
+        result.value = v.dup.padLeft(0, SS);
     }
     else static if (isStaticArray!T)
     {
