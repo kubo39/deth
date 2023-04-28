@@ -39,7 +39,7 @@ private bytes lenToRlp(ulong l, ubyte o) pure nothrow @safe
     }
 }
 
-private bytes cutBytes(const bytes a) pure nothrow @safe
+bytes cutBytes(const bytes a) pure nothrow @safe
 {
     ulong i;
     for (i = 0; i < a.length; i++)
