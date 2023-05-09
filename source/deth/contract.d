@@ -46,7 +46,12 @@ class Contract(ContractABI abi = ContractABI.init)
     {
         Transaction tx;
         assert(deployedBytecode.length, "deployedBytecode should be set");
-        tx.data = deployedBytecode ~ encode(argv);
+        bytes argvEncoded = [];
+        static if (argv.length > 0)
+        {
+            argvEncoded = encode(argv);
+        }
+        tx.data = deployedBytecode ~ argvEncoded;
         return SendableTransaction(tx, conn);
     }
 
