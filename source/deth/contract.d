@@ -27,7 +27,9 @@ class Contract(ContractABI abi = ContractABI.init)
 {
     Address address;
     private RPCConnector conn;
-    static bytes deployedBytecode;
+    static bytes bytecode;
+    static string _bytecode;
+    static size_t[string] spaceholders;
 
     this(RPCConnector conn, Address addr)
     {
@@ -45,13 +47,13 @@ class Contract(ContractABI abi = ContractABI.init)
     static auto deployTx(ARGS...)(RPCConnector conn, ARGS argv)
     {
         Transaction tx;
-        assert(deployedBytecode.length, "deployedBytecode should be set");
+        assert(bytecode.length, "bytecode should be set");
         bytes argvEncoded = [];
         static if (argv.length > 0)
         {
             argvEncoded = encode(argv);
         }
-        tx.data = deployedBytecode ~ argvEncoded;
+        tx.data = bytecode ~ argvEncoded;
         return SendableTransaction(tx, conn);
     }
 
@@ -103,6 +105,19 @@ class Contract(ContractABI abi = ContractABI.init)
     private void logCall(string selector)
     {
         tracef("Calling %s %s(0x%s)", selector, abi.contractName, this.address.convTo!string);
+    }
+
+    static void link(string contractName, Address addr)
+    {
+        if (contractName !in spaceholders.keys)
+            return;
+        auto offset = spaceholders[contractName];
+        auto spaceholder = _bytecode[offset .. offset + 40];
+        _bytecode.replace(spaceholder, addr.convTo!string);
+        spaceholders.remove(contractName);
+        if(spaceholders.keys.length == 0){
+            bytecode = _bytecode.convTo!string;
+        }
     }
 }
 
