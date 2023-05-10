@@ -15,7 +15,7 @@ alias TestContract = Contract!TestABI;
 void main()
 {
     globalLogLevel = LogLevel.all;
-    TestContract.deployedBytecode = import(binPath).convTo!bytes;
+    TestContract.bytecode = import(binPath).convTo!bytes;
     import std.process : environment;
 
     auto host = environment.get("RPC_HOST", "127.0.0.1");
