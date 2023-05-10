@@ -109,13 +109,12 @@ class Contract(ContractABI abi = ContractABI.init)
 
     static void link(string contractName, Address addr)
     {
-        if (spaceholders.keys.canFind(contractName))
+        if (!spaceholders.keys.canFind(contractName))
             return;
         auto offset = spaceholders[contractName];
         auto spaceholder = _bytecode[offset .. offset + 40];
         _bytecode = _bytecode.replace(spaceholder, addr.convTo!string);
-        spaceholders.remove(contractName);
-        if(spaceholders.keys.length == 0){
+        if(!_bytecode.canFind("_$")){
             bytecode = _bytecode.convTo!bytes;
         }
     }
