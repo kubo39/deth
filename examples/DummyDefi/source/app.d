@@ -11,7 +11,7 @@ alias Token = Contract!TokenABI;
 void main()
 {
     auto conn = new RPCConnector("http://qdevnet:8545");
-    Token.deployedBytecode = import("build/DFT.bin").convTo!bytes;
+    Token.bytecode = import("build/DFT.bin").convTo!bytes;
     auto pkValue = "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c".convTo!bytes;
     auto pk = new secp256k1(pkValue[0 .. 32]);
     conn.wallet[pk.address] = pk;
