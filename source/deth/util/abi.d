@@ -301,12 +301,12 @@ in (data.length % 32 == 0)
             foreach (i; 0 .. len)
             {
                 alias Element = ElementType!T;
-                // todo size of type
+                // todo size of type (types could take more than one slot)
                 enum SC = 1;
                 static if (is(Element == dchar) || is(Element == char) || is(Element == ubyte))
                 {
                     result ~= arrayData[SS + i .. SS + i + 1];
-                }
+                }   
                 else
                 {
                     result ~= arrayData[SS + i * SS * SC .. $].decode!Element(i * SS * SC);
@@ -317,7 +317,15 @@ in (data.length % 32 == 0)
             result= cast(bool)data[$-1];
         }
         else static if(isInstanceOf!(Tuple, T)){
-
+            auto code(){
+                string[] res;
+                foreach(i; 0..T.length){
+                    res ~= `data[SS*i..SS+SS*i].decode!(typeof(result[i]))`.replace(`i`, i.to!string);
+                }
+                return res.join(", ");
+            }
+            import std: tuple;
+            mixin(`result = tuple(`~code~`);`);
         }
         else
             static assert(0, "Type not supported");
@@ -335,6 +343,7 @@ private void runTestDecode(T)(T a)
 @("solidity ABI decode")
 unittest
 {
+    import std: tuple;
     ubyte[4] s = [1, 2, 3, 4];
     runTestDecode(10.BigInt);
     runTestDecode([2.BigInt]);
@@ -346,4 +355,5 @@ unittest
     ]);
     runTestDecode("HelloWorld!");
     runTestDecode(s);
+    runTestDecode(tuple(1.BigInt,2.BigInt,3.BigInt));
 }
