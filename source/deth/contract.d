@@ -1,6 +1,6 @@
 module deth.contract;
 
-import std : toHexString, to;
+import std : toHexString, to, Tuple;
 import structjson;
 import std.bigint : BigInt;
 import std.stdio;
@@ -92,7 +92,7 @@ class Contract(ContractABI abi = ContractABI.init)
         static if (is(Result == void))
             return data;
         else
-            return data.decode!Result;
+            return data.decode!(Result);
     }
 
     auto sendMethodS(string signature, Result = void, ARGS...)(ARGS argv)
@@ -147,7 +147,7 @@ private string allFunctions(ContractABI abi)
         %s %s
         {
             logCall("%s");
-            return callMethod!(%s)%s.decode!%s;
+            return callMethod!(%s)%s.decode!(%s);
         }}.format(returns, dSignature, func.signature, func.selector, dargs, returns);
         }
         else
@@ -391,11 +391,10 @@ private string parseTuple(JSONValue components) @safe pure
 
 private string toDType(string SolType) @safe pure
 {
-    string DType = SolType.replace("tuple", "tuple!");
-    DType = DType.replace("bytes", "ubyte[]");
+    string DType = SolType.replace("tuple", "Tuple!");
     DType = DType.replace("address", "Address");
     /// size circle
-    foreach (size; 1 .. 33)
+    for (int size = 32; size > 0; size--)
     {
         auto bits = to!string(size * 8);
         auto size_s = size.to!string;
@@ -403,6 +402,7 @@ private string toDType(string SolType) @safe pure
         DType = DType.replace("int" ~ bits, "BigInt");
         DType = DType.replace("bytes" ~ size_s, "ubyte[" ~ size_s ~ "]");
     }
+    DType = DType.replace("bytes", "ubyte[]");
     return DType;
 }
 
@@ -411,6 +411,7 @@ unittest
 {
     assert("int256".toDType == "BigInt", "int256".toDType);
     assert("uint256".toDType == "BigInt", "uint256".toDType);
+    assert("bytes32".toDType == "ubyte[32]", "bytes32".toDType);
 }
 
 enum Mutability

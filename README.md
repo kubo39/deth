@@ -7,15 +7,12 @@ D library for interacting to contracts
 
 ## TODO
  - [x] ddoc
- - [x] add attributes const, pure, etc - 0.0.8-alpha
- - [ ] Artifacts and ContractABI improvments - 0.0.9-alpha
- - [ ] improvements for sending tx(waiter, nonce increment) - 0.0.10-alpha
- - [ ] fix decode(add more types) - 0.0.11-alpha
- - [ ] libriry linking - 0.0.12-alpha
+ - [x] add attributes const, pure, etc 
+ - [ ] Artifacts and ContractABI improvments 
+ - [ ] improvements for sending tx(waiter, nonce increment)
+ - [ ] fix decode(add more types) 
+ - [x] libriry linking 
  - [ ] ... 
- - [ ] Test Template for testing contracts - 1.0.0-rc000
- - [ ] ...
- - [ ] Template for testing contracts - 1.0.0
 
 ## Example
 ```d

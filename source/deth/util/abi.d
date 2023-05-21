@@ -7,6 +7,7 @@ import std : to, text;
 import std : BigInt, toHex, replace;
 import std : map, join, fold;
 import std : array, iota;
+import std : Tuple;
 import deth.util.types;
 
 /// SLOT SIZE 32 bytes
@@ -55,7 +56,11 @@ private struct EncodingResult
 EncodingResult encodeUnit(T)(const T v) pure @safe
 {
     EncodingResult result;
-    static if (isBoolean!T || isIntegral!T)
+    static if(is(T == bool)){
+        result.value = new ubyte[32];
+        result.value[$-1] = cast(bool) v;
+    }
+    else static if (isBoolean!T || isIntegral!T)
     {
         result.value = v.BigInt.convTo!bytes.padLeft(0, SS);
     }
@@ -71,6 +76,12 @@ EncodingResult encodeUnit(T)(const T v) pure @safe
     else static if (is(T == BigInt))
     {
         result.value = v.convTo!bytes.padLeft(0, SS);
+    }
+    else static if(isInstanceOf!(Tuple, T)){
+        foreach (t; v)
+        {
+            result ~= t.encodeUnit;
+        }
     }
     else static if (is(T == struct))
     {
@@ -143,6 +154,17 @@ private auto tuplelizeT(T)(const T v) pure nothrow @safe
     {
         mixin(q{
                 return tuple(} ~ v.length.iota.map!q{text(`v[`, a, `]`)}.join(`, `) ~ `);`);
+    }
+    else static if (isInstanceOf!(Tuple, T)){
+        auto code(){
+            string[] res;
+            foreach (i; 0..T.length)
+            {
+                res~=`tuplelizeT(v[` ~i.to!string ~ `])`;
+            }
+            return res.join("~ ");
+        }
+        mixin(`return `~code~`;`);
     }
     else static if (is(T == struct))
     {
@@ -290,6 +312,12 @@ in (data.length % 32 == 0)
                     result ~= arrayData[SS + i * SS * SC .. $].decode!Element(i * SS * SC);
                 }
             }
+        }
+        else static if(is(T == bool)){
+            result= cast(bool)data[$-1];
+        }
+        else static if(isInstanceOf!(Tuple, T)){
+
         }
         else
             static assert(0, "Type not supported");
