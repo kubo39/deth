@@ -6,6 +6,7 @@ import std.bigint : BigInt;
 import std.digest : toHexString;
 import std.array : replace;
 import std.format;
+import core.sync;
 import std.conv : to;
 import std.stdio;
 import std.exception;
@@ -121,10 +122,6 @@ struct SendableTransaction
             enforce(accList.length > 0, " No accounts are unlocked");
             tx.from = accList[0];
         }
-        if (tx.nonce.isNull)
-        {
-            tx.nonce = conn.getTransactionCount(tx.from.get);
-        }
         if (tx.gas.isNull)
         {
             tx.gas = conn.estimateGas(tx) * conn.gasEstimatePercentage / 100;
@@ -133,13 +130,20 @@ struct SendableTransaction
         {
             tx.gasPrice = conn.gasPrice;
         }
-        if (conn.isUnlocked(tx.from.get))
+        synchronized
         {
-            return conn.sendRawTransaction(tx);
-        }
-        else if (conn.isUnlockedRemote(tx.from.get))
-        {
-            return conn.sendTransaction(tx);
+            if (tx.nonce.isNull)
+            {
+                tx.nonce = conn.getTransactionCount(tx.from.get);
+            }
+            if (conn.isUnlocked(tx.from.get))
+            {
+                return conn.sendRawTransaction(tx);
+            }
+            else if (conn.isUnlockedRemote(tx.from.get))
+            {
+                return conn.sendTransaction(tx);
+            }
         }
         assert(0);
     }
