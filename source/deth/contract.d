@@ -1,6 +1,7 @@
 module deth.contract;
 
 import std : toHexString, to, Tuple;
+import core.sync: Mutex;
 import structjson;
 import std.bigint : BigInt;
 import std.stdio;
@@ -27,9 +28,10 @@ class Contract(ContractABI abi = ContractABI.init)
 {
     Address address;
     private RPCConnector conn;
-    static bytes bytecode;
-    static string _bytecode;
-    static size_t[string] spaceholders;
+    static Mutex __bytecodeMutex;
+    __gshared static bytes bytecode;
+    __gshared static string bytecode_s;
+    __gshared static size_t[string] spaceholders;
 
     this(RPCConnector conn, Address addr)
     {
@@ -46,6 +48,7 @@ class Contract(ContractABI abi = ContractABI.init)
     // Sends traansaction for deploy contract
     static auto deployTx(ARGS...)(RPCConnector conn, ARGS argv)
     {
+        __lockMutex;
         Transaction tx;
         assert(bytecode.length, "bytecode should be set");
         bytes argvEncoded = [];
@@ -54,6 +57,7 @@ class Contract(ContractABI abi = ContractABI.init)
             argvEncoded = encode(argv);
         }
         tx.data = bytecode ~ argvEncoded;
+        __unlockMutex;
         return SendableTransaction(tx, conn);
     }
 
@@ -109,14 +113,22 @@ class Contract(ContractABI abi = ContractABI.init)
 
     static void link(string contractName, Address addr)
     {
+        __lockMutex;
         if (!spaceholders.keys.canFind(contractName))
             return;
         auto offset = spaceholders[contractName];
-        auto spaceholder = _bytecode[offset .. offset + 40];
-        _bytecode = _bytecode.replace(spaceholder, addr.convTo!string);
-        if(!_bytecode.canFind("_$")){
-            bytecode = _bytecode.convTo!bytes;
+        auto spaceholder = bytecode_s[offset .. offset + 40];
+        bytecode_s = bytecode_s.replace(spaceholder, addr.convTo!string);
+        if(!bytecode_s.canFind("_$")){
+            bytecode = bytecode_s.convTo!bytes;
         }
+        scope(exit)__unlockMutex;
+    }
+    static void __lockMutex(){
+        if(__bytecodeMutex)__bytecodeMutex.lock;
+    }
+    static void __unlockMutex(){
+        if(__bytecodeMutex)__bytecodeMutex.unlock;
     }
 }
 
@@ -161,6 +173,8 @@ private string allFunctions(ContractABI abi)
         }
     }
     return code;
+
+
 }
 
 /// structure presenting contract's abi
