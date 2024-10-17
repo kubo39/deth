@@ -232,36 +232,19 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
 }
 
-@("sending legacy tx")
+@("sending eip-155 tx")
 unittest
 {
     auto conn = new RPCConnector("https://rpc.qtestnet.org/");
-    conn.wallet.addPrivateKey("beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c");
+    conn.wallet.addPrivateKey(
+        "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347d");
     import deth.util.decimals;
 
     Transaction tx = {
         to: "0xdddddddd0d0d0d0d0d0d0ddddddddd".convTo!Address,
         value: 16.wei,
-        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",};
-        auto txHash = SendableTransaction(tx, conn).send();
-        conn.getTransaction(txHash);
-        conn.waitForTransactionReceipt(txHash);
-        assert(!conn.getTransactionReceipt(txHash).isNull);
-    }
-
-    @("sending eip-155 tx")
-    unittest
-    {
-        auto conn = new RPCConnector("https://rpc.qtestnet.org/");
-        conn.wallet.addPrivateKey(
-            "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347d");
-        import deth.util.decimals;
-
-        Transaction tx = {
-            to: "0xdddddddd0d0d0d0d0d0d0ddddddddd".convTo!Address,
-            value: 16.wei,
-            data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
-            chainid: conn.net_version.to!ulong,
+        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
+        chainid: conn.net_version.to!ulong,
     };
     auto txHash = SendableTransaction(tx, conn).send();
     conn.getTransaction(txHash);
