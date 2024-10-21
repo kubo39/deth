@@ -59,6 +59,7 @@ private interface IEthRPC
     JSONValue eth_getTransactionByHash(string hash) @safe;
     JSONValue eth_getTransactionByBlockNumberAndIndex(JSONValue blockNumber, string index) @safe;
     JSONValue eth_getTransactionReceipt(string data) @safe;
+    JSONValue eth_getProof(string address, string[] storageKeys, JSONValue blockNumber) @safe;
 }
 
 private mixin template BlockNumberToJSON(alias block)
@@ -184,6 +185,24 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return hash;
     }
 
+    /// Wrapper for eth_getProof
+    /// Params:
+    ///   address = address of user
+    ///   storageKeys = An array of 32-byte storage keys to be proofed and included
+    /// Returns: EIP-1186 ProofResponse
+    Nullable!ProofResponse getProof(BlockParameter)(Address address, string[] storageKeys,
+        BlockParameter block = BlockNumber.LATEST) @safe
+    {
+        mixin BlockNumberToJSON!block;
+        JSONValue rawResponse = eth_getProof(address.convTo!string.ox, storageKeys, _block);
+        Nullable!ProofResponse proofResponse;
+        if (!rawResponse.isNull)
+        {
+            proofResponse = Nullable!ProofResponse(rawResponse.convTo!ProofResponse);
+        }
+        return proofResponse;
+    }
+
     /// Returns: array with addresses which PK is stored in wallet
     Address[] accounts() const @safe
     {
@@ -250,4 +269,17 @@ unittest
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
+}
+
+// https://eips.ethereum.org/EIPS/eip-1186
+@("eip-1186 merkle proofs")
+unittest
+{
+    auto conn = new RPCConnector("https://rpc.qtestnet.org/");
+    Address address = "0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842".convTo!Address;
+    auto storageKeys = [
+        "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+    ];
+    auto proof = conn.getProof(address, storageKeys);
+    assert(proof.get.address == address);
 }

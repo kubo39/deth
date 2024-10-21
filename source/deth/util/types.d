@@ -1,6 +1,7 @@
 module deth.util.types;
 
-import std.algorithm : reverse;
+import std.algorithm : map, reverse;
+import std.array : array;
 import std.conv : to;
 import std : toHexStringT = toHexString, LetterCase;
 import std.json : JSONValue;
@@ -182,6 +183,38 @@ To convTo(To, _From)(const _From f) @safe pure
             }();
             return info;
         }
+        static if(is(To == ProofResponse))
+        {
+            ProofResponse proof;
+            () @trusted {
+                proof.address = f[`address`].str.convTo!Address;
+
+                if (!f[`accountProof`].isNull)
+                    proof.accountProof = f[`accountProof`].array
+                        .map!(a => a.str[2 .. $].hexToBytes)
+                        .array;
+
+                proof.balance = f[`balance`].str.BigInt;
+                proof.codeHash = f[`codeHash`].str.convTo!Hash;
+                proof.nonce = f[`nonce`].str[2 .. $].to!ulong(16);
+
+                if (!f[`storageProof`].isNull)
+                {
+                    proof.storageProof = f[`storageProof`].array
+                        .map!(elem => StorageProof(
+                            key: elem[`key`].str.convTo!bytes,
+                            value: elem[`value`].str.convTo!bytes,
+                            proof: elem[`proof`].array
+                                .map!(a => a.str[2 .. $].hexToBytes)
+                                .array
+                        ))
+                        .array;
+                }
+
+                proof.storageHash = f[`storageHash`].str.convTo!Hash;
+            }();
+            return proof;
+        }
     }
 }
 
@@ -285,4 +318,23 @@ struct Log
     Address address; //  DATA, 20 Bytes - address from which this log originated.
     bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
     Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)
+}
+
+struct StorageProof
+{
+    bytes key; // Storage key.
+    bytes value; // Value that the key holds
+    bytes[] proof; // proof for the pair
+}
+
+// https://github.com/ethereum/execution-apis/blob/v1.0.0-beta.4/src/schemas/state.yaml#L1
+struct ProofResponse
+{
+    Address address;
+    bytes[] accountProof;
+    BigInt balance;
+    Hash codeHash;
+    ulong nonce;
+    Hash storageHash;
+    StorageProof[] storageProof;
 }
