@@ -1,5 +1,12 @@
+root = true
+
 [*]
 end_of_line = lf
+charset = utf-8
+insert_final_newline = true
+
+[Makefile]
+indent_style = tab
 
 [*.{d,di}]
 indent_size = 4
