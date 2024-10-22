@@ -333,11 +333,13 @@ in (data.length % 32 == 0)
     }
 }
 
-private void runTestDecode(T)(T a)
+version (unittest)
 {
-    auto got = a.encode.decode!T;
-    assert(got == a, got.to!string);
-
+    private void runTestDecode(T)(T a)
+    {
+        auto got = a.encode.decode!T;
+        assert(got == a, got.to!string);
+    }
 }
 
 @("solidity ABI decode")
