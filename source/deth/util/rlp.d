@@ -164,26 +164,30 @@ T rlpDecode(T)(const(ubyte)[] input) @trusted
     }
     else static if (is(T U == U[]))
     {
-        const decodedHeader = decodeRlpHeader(input);
-        assert(decodedHeader.isList);
-
-        if (input.length == 0)
-            return [];
-
-        U[] answer;
-
-        // cannot pass ref for input directly,,
-        size_t offset = input.length - decodedHeader.payloadLen;
-        while (offset < input.length)
+        static if (is(U == ubyte) || is(U == ushort) || is(U == uint) ||
+            is(U == ulong) || is(U == string))
         {
-            const(ubyte)[] tmp = input[offset .. $].dup;
-            const decodedElemHeader = decodeRlpHeader(tmp);
-            const newOffset = offset + decodedElemHeader.offset + decodedElemHeader.payloadLen;
-            U elem = rlpDecode!U(input[offset .. newOffset]);
-            answer ~= elem;
-            offset = newOffset;
+            const decodedHeader = decodeRlpHeader(input);
+            assert(decodedHeader.isList);
+
+            if (input.length == 0)
+                return [];
+
+            T answer;
+
+            // cannot pass ref for input directly,,
+            size_t offset = input.length - decodedHeader.payloadLen;
+            while (offset < input.length)
+            {
+                const(ubyte)[] tmp = input[offset .. $].dup;
+                const decodedElemHeader = decodeRlpHeader(tmp);
+                const newOffset = offset + decodedElemHeader.offset + decodedElemHeader.payloadLen;
+                U elem = rlpDecode!U(input[offset .. newOffset]);
+                answer ~= elem;
+                offset = newOffset;
+            }
+            return answer;
         }
-        return answer;
     }
     else static assert(false, "Unsupported type: " ~ T.stringof);
 }
