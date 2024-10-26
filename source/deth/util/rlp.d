@@ -76,8 +76,8 @@ unittest
     ];
     foreach (c; cases)
     {
-        assert(c.a.dup.cutBytes == c.b.dup.cutBytes);
-        assert(c.a.dup.cutBytes == c.a.dup.cutBytes);
+        assert(c.a.cutBytes == c.b.cutBytes);
+        assert(c.a.cutBytes == c.a.cutBytes);
     }
 }
 
