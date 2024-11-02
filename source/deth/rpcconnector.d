@@ -254,28 +254,40 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
 @("sending eip-155 tx")
 unittest
 {
-    auto conn = new RPCConnector("https://rpc.qtestnet.org/");
+    import deth.util.decimals : wei;
+
+    auto conn = new RPCConnector("http://127.0.0.1:8545");
+
+    const accounts = conn.remoteAccounts();
+    const alice = accounts[0];
+    const bob = accounts[1];
+
+    // anvil's default private key.
     conn.wallet.addPrivateKey(
-        "beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347d");
-    import deth.util.decimals;
+        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    );
+    assert(conn.accounts[0] == alice);
 
     Transaction tx = {
-        to: "0xdddddddd0d0d0d0d0d0d0ddddddddd".convTo!Address,
+        to: bob,
         value: 16.wei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
         chainid: conn.net_version.to!ulong,
     };
-    auto txHash = SendableTransaction(tx, conn).send();
+    const txHash = SendableTransaction(tx, conn).send();
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
-    assert(!conn.getTransactionReceipt(txHash).isNull);
+    const receipt = conn.getTransactionReceipt(txHash);
+    assert(!receipt.isNull);
+    assert(receipt.get.from == alice);
+    assert(receipt.get.to == bob);
 }
 
 // https://eips.ethereum.org/EIPS/eip-1186
 @("eip-1186 merkle proofs")
 unittest
 {
-    auto conn = new RPCConnector("https://rpc.qtestnet.org/");
+    auto conn = new RPCConnector("http://127.0.0.1:8545");
     Address address = "0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842".convTo!Address;
     auto storageKeys = [
         "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
