@@ -251,6 +251,34 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
 }
 
+@("sending legacy tx")
+unittest
+{
+    import deth.util.decimals;
+
+    auto conn = new RPCConnector("http://127.0.0.1:8545");
+
+    const accounts = conn.remoteAccounts();
+    const alice = accounts[0];
+    const bob = accounts[1];
+
+    // anvil's default private key.
+    conn.wallet.addPrivateKey(
+        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    );
+    assert(conn.accounts[0] == alice);
+
+    Transaction tx = {
+        to: bob,
+        value: 16.wei,
+        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
+    };
+    auto txHash = SendableTransaction(tx, conn).send();
+    conn.getTransaction(txHash);
+    conn.waitForTransactionReceipt(txHash);
+    assert(!conn.getTransactionReceipt(txHash).isNull);
+}
+
 @("sending eip-155 tx")
 unittest
 {
