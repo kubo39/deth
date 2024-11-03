@@ -1,0 +1,6 @@
+name "transfer"
+description "An example for transfer eth"
+authors "Hiroki Noda"
+copyright "Copyright © 2024, Hiroki Noda"
+dependency "deth" version="*" path="../../"
+license "MIT"
