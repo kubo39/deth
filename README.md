@@ -1,5 +1,7 @@
 # Deth
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 D library for interacting to contracts
 
 ## Dependencies
@@ -8,9 +10,9 @@ D library for interacting to contracts
 
 ## Example
 
-```d
-import std.stdio;
+- Contracts
 
+```d
 import deth;
 
 static immutable TokenABI = ContractABI.load!"build/DFT.abi";
@@ -27,4 +29,3 @@ void main()
     token.transfer("0xdddddddd0d0d0d0d0d0d0ddddddddd".convTo!Address, 0xd.wei).send();
 }
 ```
-
