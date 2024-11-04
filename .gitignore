@@ -17,4 +17,6 @@ libdeth.a
 
 *.log
 ./deth-test-library
-./examples/devtest/deth_devtest
+examples/devtest/deth_devtest
+examples/transfer/deth_transfer
+examples/deploybytecode/deth_deploybytecode

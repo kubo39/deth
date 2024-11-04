@@ -1,0 +1,6 @@
+name "deploybytecode"
+description "deploy a contract from bytecode"
+authors "Hiroki Noda"
+copyright "Copyright © 2024, Hiroki Noda"
+dependency "deth" version="*" path="../../"
+license "MIT"
