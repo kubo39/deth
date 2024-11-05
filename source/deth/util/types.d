@@ -124,6 +124,46 @@ To convTo(To, _From)(const _From f) @safe pure
     }
     static if (is(From == JSONValue))
     {
+        static if (is(To == BlockResponse))
+        {
+            BlockResponse blk;
+            () @trusted {
+                if (!f[`number`].isNull)
+                    blk.number = f[`number`].str[2 .. $].to!ulong(16);
+                if (!f[`hash`].isNull)
+                    blk.hash = f[`hash`].str[2 .. $].convTo!Hash;
+                if (!f[`parentHash`].isNull)
+                    blk.parentHash = f[`parentHash`].str[2 .. $].convTo!Hash;
+                blk.nonce = f[`nonce`].str[2 .. $].to!ulong(16);
+                blk.sha3Uncles = f[`sha3Uncles`].str[2 .. $].convTo!Hash;
+                if (!f[`logsBloom`].isNull)
+                    blk.logsBloom = f[`logsBloom`].str[2 .. $].hexToBytes;
+                blk.transactionsRoot = f[`transactionsRoot`].str[2 .. $].convTo!Hash;
+                blk.stateRoot = f[`stateRoot`].str[2 .. $].convTo!Hash;
+                blk.receiptsRoot = f[`receiptsRoot`].str[2 .. $].convTo!Hash;
+                blk.miner = f[`miner`].str[2 .. $].convTo!Address;
+                if (const difficulty = `difficulty` in f)
+                    blk.difficulty = difficulty.str.BigInt;
+                if (const totalDifficulty = `totalDifficulty` in f)
+                    blk.totalDifficulty = totalDifficulty.str.BigInt;
+                blk.extraData = f[`extraData`].str[2 .. $].hexToBytes;
+                blk.size = f[`size`].str[2 .. $].to!ulong(16);
+                blk.gasLimit = f[`gasLimit`].str.BigInt;
+                blk.gasUsed = f[`gasUsed`].str.BigInt;
+                blk.timestamp = f[`timestamp`].str.BigInt;
+                blk.transactions = new bytes[f[`transactions`].array.length];
+                foreach (i, transaction; f[`transactions`].array)
+                {
+                    blk.transactions[i] = transaction.str[2 .. $].hexToBytes;
+                }
+                blk.uncles = new Hash[f[`uncles`].array.length];
+                foreach (i, uncleHash; f[`uncles`].array)
+                {
+                    blk.uncles[i] = uncleHash.str[2 .. $].convTo!Hash;
+                }
+            }();
+            return blk;
+        }
         static if (is(To == TransactionReceipt))
         {
             TransactionReceipt tx;
@@ -277,6 +317,29 @@ unittest
     char[4] t;
     t[] = 'a';
     assert(t.ox == "0xaaaa");
+}
+
+struct BlockResponse
+{
+    Nullable!ulong number;
+    Nullable!Hash hash;
+    Nullable!Hash parentHash;
+    ulong nonce;
+    Hash sha3Uncles;
+    Nullable!bytes logsBloom;
+    Hash transactionsRoot;
+    Hash stateRoot;
+    Hash receiptsRoot;
+    Address miner;
+    BigInt difficulty;
+    BigInt totalDifficulty;
+    bytes extraData;
+    ulong size;
+    BigInt gasLimit;
+    BigInt gasUsed;
+    BigInt timestamp;
+    bytes[] transactions;
+    Hash[] uncles;
 }
 
 struct TransactionReceipt
