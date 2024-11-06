@@ -115,6 +115,24 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return super.eth_call(tx.toJSON, _block)[2 .. $].convTo!bytes;
     }
 
+    /// wrapper for eth_getBlockByNumber
+    /// Params:
+    ///   isFull = if true, it returns the detail of each transaction.
+    ///            If false, only the hashes of the transactions.
+    /// Returns: block object, or null when no block was found.
+    Nullable!BlockResponse getBlock(BlockParameter)(bool isFull,
+        BlockParameter block = BlockNumber.LATEST) @safe
+    {
+        mixin BlockNumberToJSON!block;
+        JSONValue a = eth_getBlockByNumber(_block, isFull);
+        Nullable!BlockResponse blockResponse;
+        if (!a.isNull)
+        {
+            blockResponse = Nullable!BlockResponse(a.convTo!BlockResponse);
+        }
+        return blockResponse;
+    }
+
     /// Wrapper for eth_getTrasactionCount
     /// Params:
     ///   address = address of user
@@ -249,6 +267,17 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         }
         return getTransactionReceipt(txHash).get;
     }
+}
+
+
+@("get latest block with the hashes of the transactions")
+unittest
+{
+    auto conn = new RPCConnector("http://127.0.0.1:8545");
+    const block = conn.getBlock(false);
+
+    assert(!block.isNull);
+    assert(block.get.size > 0);
 }
 
 @("sending legacy tx")
