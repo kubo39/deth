@@ -54,6 +54,7 @@ private interface IEthRPC
     string eth_sendRawTransaction(string data) @safe;
     string eth_call(JSONValue tx, JSONValue blockNumber) @safe;
     string eth_estimateGas(JSONValue tx, JSONValue blockNumber) @safe;
+    string eth_chainId() @safe;
     JSONValue eth_getBlockByHash(string blockHash, bool isFull) @safe;
     JSONValue eth_getBlockByNumber(JSONValue blockNumber, bool isFull) @safe;
     JSONValue eth_getTransactionByHash(string hash) @safe;
@@ -267,6 +268,11 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         }
         return getTransactionReceipt(txHash).get;
     }
+
+    ulong chainId() @safe
+    {
+        return eth_chainId()[2 .. $].to!ulong(16);
+    }
 }
 
 
@@ -351,4 +357,11 @@ unittest
     ];
     auto proof = conn.getProof(address, storageKeys);
     assert(proof.get.address == address);
+}
+
+@("eth_chainId")
+unittest
+{
+    auto conn = new RPCConnector("http://127.0.0.1:8545");
+    assert(conn.chainId() == 31337 /* anvil's default chain id */);
 }
