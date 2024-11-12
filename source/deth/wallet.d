@@ -6,6 +6,7 @@ import std.exception : enforce;
 import secp256k1 : secp256k1;
 import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
 import deth.util.rlp : rlpEncode, cutBytes;
+import deth.util.transaction : TransactionType;
 
 /// struct to store several private keys in a single wallet
 struct Wallet
@@ -58,7 +59,6 @@ struct Wallet
     /// Returns: rlp encoded signed transaction
     bytes signTransaction(const Transaction tx, Address signer = Address.init) @safe pure
     {
-        import keccak : keccak256;
         import deth.util.types;
 
         if (!tx.from.isNull)
@@ -71,7 +71,12 @@ struct Wallet
         enforce(signer in addrs, "Address %s not found", signer.convTo!string.ox);
 
         auto c = addrs[signer];
-        bytes rlpTx = tx.serialize.rlpEncode;
+        bytes[] serialized = tx.serialize;
+        bytes rlpTx = serialized.rlpEncode;
+        if (!tx.type.isNull && tx.type.get != TransactionType.LEGACY)
+        {
+            rlpTx = tx.type.get ~ rlpTx;
+        }
         debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
         // the secp256k1 sign function calls keccak256() internally.
         auto signature = c.sign(rlpTx);
@@ -80,19 +85,27 @@ struct Wallet
         {
             ulong v = 27 + signature.recid;
             rawTx = rlpEncode(
-                    tx.serialize ~ v.convTo!bytes.cutBytes
+                    serialized ~ v.convTo!bytes.cutBytes
                     ~ signature.r.cutBytes ~ signature.s.cutBytes);
         }
         else
         {
             /// eip 155 signing
             ulong v = signature.recid + tx.chainid.get * 2 + 35;
-            rawTx = rlpEncode(tx.serialize[0 .. $ - 3] ~ [
+            size_t lastIndex = serialized.length - 3; // legacy eip 155
+            if (!tx.type.isNull && tx.type.get != TransactionType.LEGACY)
+            {
+                lastIndex = serialized.length;
+            }
+            rawTx = rlpEncode(serialized[0 .. lastIndex] ~ [
                     v.convTo!bytes.cutBytes, signature.r.cutBytes,
                     signature.s.cutBytes
                     ]);
+            if (!tx.type.isNull && tx.type.get != TransactionType.LEGACY)
+            {
+                rawTx = tx.type.get ~ rawTx;
+            }
         }
-
         return rawTx;
     }
 }

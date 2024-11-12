@@ -15,8 +15,16 @@ import deth.util.types;
 import deth.util.rlp : rlpEncode, cutBytes;
 import deth.rpcconnector : RPCConnector;
 
+// https://eips.ethereum.org/EIPS/eip-2718
+enum TransactionType : ubyte
+{
+    LEGACY = 0,
+    EIP1559 = 2,
+}
+
 struct Transaction
 {
+    Nullable!TransactionType type;
     Nullable!Address from;
     Nullable!Address to;
     Nullable!BigInt gas;
@@ -25,6 +33,9 @@ struct Transaction
     Nullable!bytes data = [];
     Nullable!ulong nonce;
     Nullable!ulong chainid;
+    Nullable!BigInt maxFeePerGas;
+    Nullable!BigInt maxPriorityFeePerGas;
+    Nullable!bytes accessList;
 
     invariant
     {
@@ -52,25 +63,45 @@ struct Transaction
     bytes[] serialize() pure const @safe
     {
         bytes[] encoded = [];
-        if (nonce.isNull)
-            encoded ~= [[]];
+        // eip1559
+        if (!type.isNull && type.get == TransactionType.EIP1559)
+        {
+            encoded ~= chainid.get.convTo!bytes;
+            encoded ~= nonce.get.convTo!bytes.cutBytes;
+            encoded ~= maxPriorityFeePerGas.get.convTo!bytes;
+            encoded ~= maxFeePerGas.get.convTo!bytes;
+            encoded ~= gas.get.convTo!bytes;
+            encoded ~= to.get.convTo!bytes;
+            encoded ~= value.get.convTo!bytes;
+            encoded ~= data.get.dup;
+            if (!accessList.isNull)
+                encoded ~= accessList.get.dup;
+            else
+                encoded ~= [[]];
+        }
+        // legacy
         else
-            encoded ~= cutBytes(nonce.get.convTo!bytes);
-
-        static immutable code = q{
-            if(field.isNull)
+        {
+            if (nonce.isNull)
                 encoded ~= [[]];
             else
-                encoded ~= field.get.convTo!bytes;
-        };
-        static foreach (field; ["gasPrice", "gas", "to", "value"])
-        {
-            mixin(code.replace("field", field));
-        }
-        encoded ~= data.get.dup;
-        if (!chainid.isNull)
-        {
-            encoded ~= [chainid.get.convTo!bytes.cutBytes, [], []];
+                encoded ~= cutBytes(nonce.get.convTo!bytes);
+
+            static immutable code = q{
+                if(field.isNull)
+                    encoded ~= [[]];
+                else
+                    encoded ~= field.get.convTo!bytes;
+            };
+            static foreach (field; ["gasPrice", "gas", "to", "value"])
+            {
+                mixin(code.replace("field", field));
+            }
+            encoded ~= data.get.dup;
+            if (!chainid.isNull)
+            {
+                encoded ~= [chainid.get.convTo!bytes.cutBytes, [], []];
+            }
         }
         return encoded;
     }

@@ -176,7 +176,7 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     {
         auto rawTx = wallet.signTransaction(tx);
         auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
-        tracef("sent tx %s", hash.convTo!string.ox);
+        debug tracef("sent tx %s", hash.convTo!string.ox);
         return hash;
     }
 
@@ -198,6 +198,10 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
             jtx["data"] = tx.data.get.convTo!string.ox;
         if (!tx.to.isNull)
             jtx["to"] = tx.to.get.convTo!string.ox;
+        if (!tx.maxFeePerGas.isNull)
+            jtx["maxFeePerGas"] = tx.maxFeePerGas.get.convTo!string.ox;
+        if (!tx.maxPriorityFeePerGas.isNull)
+            jtx["maxPriorityFeePerGas"] = tx.maxPriorityFeePerGas.get.convTo!string.ox;
         logf("Json string: %s", jtx.toString);
         auto hash = eth_sendTransaction(jtx).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
@@ -344,6 +348,40 @@ unittest
     assert(!receipt.isNull);
     assert(receipt.get.from == alice);
     assert(receipt.get.to == bob);
+}
+
+@("sending eip-1559 transaction type 2")
+unittest
+{
+    auto conn = new RPCConnector("http://127.0.0.1:8545");
+    const accounts = conn.remoteAccounts();
+    const alice = accounts[0];
+    const bob = accounts[1];
+
+    // anvil's first default private key(alice).
+    conn.wallet.addPrivateKey(
+        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    );
+    assert(conn.accounts[0] == alice);
+
+    Transaction tx = {
+        type: TransactionType.EIP1559,
+        from: alice,
+        to: bob,
+        value: 16.wei,
+        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
+        chainid: conn.net_version.to!ulong,
+        maxFeePerGas: 200.wei,
+        maxPriorityFeePerGas: 20.wei,
+    };
+    const txHash = SendableTransaction(tx, conn).send();
+    const receipt = conn.getTransactionReceipt(txHash);
+    assert(!receipt.isNull);
+    assert(receipt.get.from == alice);
+    assert(receipt.get.to == bob);
+    import std.stdio;
+    writeln(receipt.get);
+    assert(receipt.get.type == TransactionType.EIP1559);
 }
 
 // https://eips.ethereum.org/EIPS/eip-1186
