@@ -305,6 +305,8 @@ unittest
 
     Transaction tx = {
         to: bob,
+        gas: 21_000.wei,
+        gasPrice: 0.wei,
         value: 16.wei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
     };
@@ -332,7 +334,10 @@ unittest
     assert(conn.accounts[0] == alice);
 
     Transaction tx = {
+        from: alice,
         to: bob,
+        gas: 21_000.wei,
+        gasPrice: 0.wei,
         value: 16.wei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
         chainid: conn.net_version.to!ulong,

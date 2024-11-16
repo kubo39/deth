@@ -3,9 +3,11 @@ module deth.wallet;
 
 import std.experimental.logger;
 import std.exception : enforce;
-import secp256k1 : secp256k1;
 import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
 import deth.util.rlp : rlpEncode, cutBytes;
+import deth.util.types;
+import keccak : keccak256;
+import secp256k1 : secp256k1;
 
 /// struct to store several private keys in a single wallet
 struct Wallet
@@ -58,8 +60,6 @@ struct Wallet
     /// Returns: rlp encoded signed transaction
     bytes signTransaction(const Transaction tx, Address signer = Address.init) @safe pure
     {
-        import keccak : keccak256;
-        import deth.util.types;
 
         if (!tx.from.isNull)
         {
@@ -73,10 +73,10 @@ struct Wallet
         auto c = addrs[signer];
         bytes rlpTx = tx.serialize.rlpEncode;
         debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
-        auto signature = c.sign(rlpTx);
         bytes rawTx;
         if (tx.chainid.isNull)
         {
+            auto signature = c.sign(rlpTx);
             ulong v = 27 + signature.recid;
             rawTx = rlpEncode(
                     tx.serialize ~ v.convTo!bytes.cutBytes
@@ -85,6 +85,7 @@ struct Wallet
         else
         {
             /// eip 155 signing
+            auto signature = c.sign(keccak256(rlpTx));
             ulong v = signature.recid + tx.chainid.get * 2 + 35;
             rawTx = rlpEncode(tx.serialize[0 .. $ - 3] ~ [
                     v.convTo!bytes.cutBytes, signature.r.cutBytes,
