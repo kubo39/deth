@@ -3,10 +3,12 @@ module deth.wallet;
 
 import std.experimental.logger;
 import std.exception : enforce;
-import secp256k1 : secp256k1;
 import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
 import deth.util.rlp : rlpEncode, cutBytes;
 import deth.util.transaction : TransactionType;
+import deth.util.types;
+import keccak : keccak256;
+import secp256k1 : secp256k1, Signature;
 
 /// struct to store several private keys in a single wallet
 struct Wallet
@@ -57,10 +59,8 @@ struct Wallet
     ///   tx =  tx to sign
     ///   signer = address which key will be used to sign if tx hasn't store from field
     /// Returns: rlp encoded signed transaction
-    bytes signTransaction(const Transaction tx, Address signer = Address.init) @safe pure
+    bytes signTransaction(const Transaction tx, Address signer = Address.init) @safe
     {
-        import deth.util.types;
-
         if (!tx.from.isNull)
         {
             signer = tx.from.get;
@@ -72,11 +72,16 @@ struct Wallet
 
         auto c = addrs[signer];
         bytes[] serialized = tx.serialize;
+        import std.stdio;
+        writeln("serialized: ", serialized);
+        writeln("serialized len: ", serialized.length);
         bytes rlpTx = serialized.rlpEncode;
         if (!tx.type.isNull && tx.type.get != TransactionType.LEGACY)
         {
             rlpTx = tx.type.get ~ rlpTx;
         }
+        import std.stdio;
+        writeln("Rlp encoded tx: ", rlpTx.toHexString.ox);
         debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
         // the secp256k1 sign function calls keccak256() internally.
         auto signature = c.sign(rlpTx);
@@ -92,6 +97,8 @@ struct Wallet
         {
             /// eip 155 signing
             ulong v = signature.recid + tx.chainid.get * 2 + 35;
+            writeln("signature.recid: ", signature.recid);
+            writeln("v: ", v);
             size_t lastIndex = serialized.length - 3; // legacy eip 155
             if (!tx.type.isNull && tx.type.get != TransactionType.LEGACY)
             {
@@ -105,6 +112,8 @@ struct Wallet
             {
                 rawTx = tx.type.get ~ rawTx;
             }
+            import std.stdio;
+            writeln("Raw encoded tx: ", rawTx.toHexString.ox);
         }
         return rawTx;
     }
