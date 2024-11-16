@@ -73,6 +73,7 @@ struct Wallet
         auto c = addrs[signer];
         bytes rlpTx = tx.serialize.rlpEncode;
         debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
+        // the secp256k1 sign function calls keccak256() internally.
         auto signature = c.sign(rlpTx);
         bytes rawTx;
         if (tx.chainid.isNull)
