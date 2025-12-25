@@ -20,3 +20,5 @@ libdeth.a
 examples/devtest/deth_devtest
 examples/transfer/deth_transfer
 examples/deploybytecode/deth_deploybytecode
+
+nohup.out
