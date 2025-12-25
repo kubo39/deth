@@ -10,7 +10,7 @@
 		"libasync": "0.8.6",
 		"memutils": "1.0.4",
 		"mir-linux-kernel": "1.0.1",
-		"openssl": "3.2.2",
+		"openssl": "3.3.2",
 		"secp256k1": "2.5.1",
 		"silly": "1.1.1",
 		"stdx-allocator": "2.77.5",
