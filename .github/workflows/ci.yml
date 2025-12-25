@@ -10,7 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install dependencies
         run: sudo apt-get install -y libsecp256k1-dev
       - uses: dlang-community/setup-dlang@v2
