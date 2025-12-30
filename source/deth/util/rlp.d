@@ -111,6 +111,12 @@ class InputTooShort : Exception
 }
 
 ///
+class InputTooLoing : Exception
+{
+    mixin basicExceptionCtors;
+}
+
+///
 class InvalidInput : Exception
 {
     mixin basicExceptionCtors;
@@ -121,8 +127,10 @@ T rlpDecode(T)(const(ubyte)[] input) @trusted
 {
     static if (is(T == bool))
     {
-        if (input.length != 1)
+        if (input.length < 1)
             throw new InputTooShort("A bool must be one byte.");
+        else if (input.length > 1)
+            throw new InputTooLoing("A bool must be one byte.");
         switch (input[0])
         {
         case 0x80:
@@ -296,4 +304,5 @@ unittest
     assertThrown!InputTooShort(rlpDecode!(ubyte[])([0xD7]));
     assertThrown!InputTooShort(rlpDecode!(uint[])([0xC1]));
     assertThrown!InputTooShort(rlpDecode!(ulong[])([0xD7]));
+    assertThrown!InputTooLoing(rlpDecode!bool([0x80, 0x80]));
 }
