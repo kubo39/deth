@@ -248,11 +248,7 @@ private DecodedHeader decodeRlpHeader(ref const(ubyte)[] input) @trusted
     if (input.length < payloadLen)
         throw new InputTooShort("Too short payload was given.");
 
-    return DecodedHeader(
-        offset: offset,
-        payloadLen: payloadLen,
-        isList: isList
-    );
+    return DecodedHeader(offset, payloadLen, isList);
 }
 
 @("rlp decode")

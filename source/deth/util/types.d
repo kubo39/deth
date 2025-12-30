@@ -242,9 +242,9 @@ To convTo(To, _From)(const _From f) @safe pure
                 {
                     proof.storageProof = f[`storageProof`].array
                         .map!(elem => StorageProof(
-                            key: elem[`key`].str.convTo!bytes,
-                            value: elem[`value`].str.convTo!bytes,
-                            proof: elem[`proof`].array
+                            elem[`key`].str.convTo!bytes,
+                            elem[`value`].str.convTo!bytes,
+                            elem[`proof`].array
                                 .map!(a => a.str[2 .. $].hexToBytes)
                                 .array
                         ))
