@@ -195,7 +195,7 @@ T rlpDecode(T)(const(ubyte)[] input) @trusted
             size_t offset = input.length - decodedHeader.payloadLen;
             while (offset < input.length)
             {
-                const(ubyte)[] tmp = input[offset .. $].dup;
+                const(ubyte)[] tmp = input[offset .. $];
                 const decodedElemHeader = decodeRlpHeader(tmp);
                 const newOffset = offset + decodedElemHeader.offset + decodedElemHeader.payloadLen;
                 U elem = rlpDecode!U(input[offset .. newOffset]);
