@@ -4,8 +4,11 @@ module deth.wallet;
 import std.bigint;
 import std.experimental.logger;
 import std.exception : enforce;
+import std.sumtype;
+
 import secp256k1 : secp256k1;
 import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
+import deth.util.transaction;
 
 import rlp.encode : encode, encodeLength;
 import rlp.header;
@@ -60,6 +63,14 @@ struct Wallet
     ///   signer = address which key will be used to sign if tx hasn't store from field
     /// Returns: rlp encoded signed transaction
     bytes signTransaction(const Transaction tx, Address signer = Address.init) @safe pure
+    {
+        return tx.match!(
+            (const LegacyTransaction legacyTx) => signTransaction(legacyTx, signer)
+        );
+    }
+
+    ///
+    bytes signTransaction(const LegacyTransaction tx, Address signer = Address.init) @safe pure
     {
         import keccak : keccak256;
         import deth.util.types;

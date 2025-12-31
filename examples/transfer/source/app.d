@@ -17,12 +17,12 @@ void main()
     );
 
     const chainid = conn.net_version.to!ulong;
-    Transaction tx = {
+    LegacyTransaction tx = {
         to: bob,
         value: 100.wei,
         chainid: chainid
     };
-    const txHash = SendableTransaction(tx, conn).send();
+    const txHash = SendableLegacyTransaction(tx, conn).send();
     const _receipt = conn.waitForTransactionReceipt(txHash);
     writeln("Sent transaction: ", txHash.convTo!string.ox);
 }

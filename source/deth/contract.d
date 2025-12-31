@@ -8,10 +8,12 @@ import std.stdio;
 import std.array : replace, join;
 import std.string : indexOf, format;
 import std.algorithm : canFind;
+import std.sumtype;
+
 import deth.util.abi : encode, decode;
 import deth.util.types;
 import deth.rpcconnector;
-import deth.util.transaction : SendableTransaction;
+import deth.util.transaction;
 import keccak : keccak256;
 
 import std.experimental.logger;
@@ -45,20 +47,22 @@ class Contract(ContractABI abi = ContractABI.init)
     }
     mixin(allFunctions(abi));
 
-    // Sends traansaction for deploy contract
+    // FIXME
+    // Sends transaction for deploy contract
     static auto deployTx(ARGS...)(RPCConnector conn, ARGS argv)
     {
         __lockMutex;
-        Transaction tx;
         assert(bytecode.length, "bytecode should be set");
+        LegacyTransaction legacyTx;
         bytes argvEncoded = [];
         static if (argv.length > 0)
         {
             argvEncoded = encode(argv);
         }
-        tx.data = bytecode ~ argvEncoded;
+        legacyTx.data = bytecode ~ argvEncoded;
         __unlockMutex;
-        return SendableTransaction(tx, conn);
+        SendableTransaction tx = SendableLegacyTransaction(legacyTx, conn);
+        return tx;
     }
 
     override string toString() const
@@ -66,26 +70,30 @@ class Contract(ContractABI abi = ContractABI.init)
         return " Contract on 0x" ~ address.convTo!string;
     }
 
+    // FIMXE
     auto callMethod(Selector selector, ARGS...)(Address from, BigInt value, ARGS argv)
     {
-        Transaction tx;
-        tx.data = selector[];
-        tx.value = value;
-        tx.from = from;
+        LegacyTransaction legacyTx;
+        legacyTx.data = selector[];
+        legacyTx.value = value;
+        legacyTx.from = from;
         static if (ARGS.length != 0)
-            tx.data = selector[] ~ encode(argv);
-        tx.to = this.address;
+            legacyTx.data = selector[] ~ encode(argv);
+        legacyTx.to = this.address;
+        Transaction tx = legacyTx;
         return conn.call(tx, BlockNumber.LATEST);
     }
 
+    // FIXME
     auto sendMethod(Selector selector, ARGS...)(ARGS argv)
     {
-        Transaction tx;
-        tx.data = selector[];
-        tx.to = this.address;
+        LegacyTransaction legacyTx;
+        legacyTx.data = selector[];
+        legacyTx.to = this.address;
         static if (ARGS.length != 0)
-            tx.data = selector[] ~ encode(argv);
-        return SendableTransaction(tx, conn);
+            legacyTx.data = selector[] ~ encode(argv);
+        SendableTransaction tx = SendableLegacyTransaction(legacyTx, conn);
+        return tx;
     }
 
     auto callMethodS(string signature, Result = void, ARGS...)(ARGS argv)

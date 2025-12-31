@@ -9,8 +9,11 @@ import std.range : chunks;
 import std.algorithm : map, canFind;
 import std.array : array, join;
 import std.stdio;
+import std.sumtype;
+
 import rpc.protocol.json;
 import std.array : replace;
+import deth.util.transaction;
 import deth.wallet : Wallet;
 
 import deth.util;
@@ -97,6 +100,13 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     /// Wrapper for eth_estimateGas
     BigInt estimateGas(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
     {
+        return tx.match!(
+            (LegacyTransaction legacyTx) => estimateGas(legacyTx, block)
+        );
+    }
+
+    BigInt estimateGas(BlockParameter)(LegacyTransaction tx, BlockParameter block = BlockNumber.LATEST) @safe
+    {
         mixin BlockNumberToJSON!block;
         return super.eth_estimateGas(tx.toJSON, _block).BigInt;
     }
@@ -156,7 +166,6 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         {
             tx = Nullable!TransactionReceipt(a.convTo!TransactionReceipt);
         }
-
         return tx;
     }
 
@@ -179,13 +188,29 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return hash;
     }
 
+    ///
+    Hash sendRawTransaction(const LegacyTransaction tx) @safe
+    {
+        auto rawTx = wallet.signTransaction(tx);
+        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
+        tracef("sent tx %s", hash.convTo!string.ox);
+        return hash;
+    }
+
     /// Wrapper for method eth_sendTransaction
     /// Params:
     ///   tx = Transaction to send
     /// Returns: Hash of sended tx
-    Hash sendTransaction(const Transaction tx) @safe
+    Hash sendTransaction(Transaction tx) @safe
     {
+        return tx.match!(
+            (const LegacyTransaction legacyTx) => sendTransaction(legacyTx)
+        );
+    }
 
+    ///
+    Hash sendTransaction(const LegacyTransaction tx) @safe
+    {
         JSONValue jtx = ["from": tx.from.get.convTo!string.ox,];
         if (!tx.value.isNull)
             jtx["value"] = tx.value.get.convTo!string.ox;
@@ -302,12 +327,12 @@ unittest
     );
     assert(conn.accounts[0] == alice);
 
-    Transaction tx = {
+    LegacyTransaction legacyTx = {
         to: bob,
         value: 16.wei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
     };
-    auto txHash = SendableTransaction(tx, conn).send();
+    auto txHash = SendableLegacyTransaction(legacyTx, conn).send();
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
@@ -330,13 +355,13 @@ unittest
     );
     assert(conn.accounts[0] == alice);
 
-    Transaction tx = {
+    LegacyTransaction legacyTx = {
         to: bob,
         value: 16.wei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
         chainid: conn.net_version.to!ulong,
     };
-    const txHash = SendableTransaction(tx, conn).send();
+    const txHash = SendableLegacyTransaction(legacyTx, conn).send();
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
     const receipt = conn.getTransactionReceipt(txHash);

@@ -20,7 +20,7 @@ void main()
 
     auto bytecode = import(binPath).convTo!bytes;
     const chainid = conn.net_version.to!ulong;
-    Transaction tx = {
+    LegacyTransaction tx = {
         from: accounts[0],
         data: bytecode,
         chainid: chainid,
