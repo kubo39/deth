@@ -1,6 +1,6 @@
 module deth.util.rlp;
 
-import std.array : replaceSlice;
+import std.array : appender, replaceSlice;
 import std.bitmanip : nativeToBigEndian, read;
 import std.conv : to;
 import std.digest : toHexString;
@@ -15,19 +15,21 @@ alias bytes = ubyte[];
 /// Returns: rlp encoded bytes
 bytes rlpEncode(const bytes[] a) pure nothrow @safe
 {
-    bytes answer = [];
+    auto answer = appender!bytes();
     foreach (item; a)
     {
         if (item.length == 1 && item[0] < 0x80)
         {
-            answer ~= item;
+            answer.put(item);
         }
         else
         {
-            answer ~= lenToRlp(item.length, 0x80) ~ item;
+            answer.put(lenToRlp(item.length, 0x80));
+            answer.put(item);
         }
     }
-    return lenToRlp(answer.length, 0xc0) ~ answer;
+    auto prefix = lenToRlp(answer.length, 0xc0);
+    return prefix ~ answer[];
 }
 
 private bytes lenToRlp(ulong l, ubyte o) pure nothrow @safe
