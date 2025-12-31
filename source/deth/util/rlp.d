@@ -123,6 +123,12 @@ class InvalidInput : Exception
 }
 
 ///
+class UnexpectedList : Exception
+{
+    mixin basicExceptionCtors;
+}
+
+///
 T rlpDecode(T)(const(ubyte)[] input) @trusted
 {
     static if (is(T == bool))
@@ -144,7 +150,8 @@ T rlpDecode(T)(const(ubyte)[] input) @trusted
     else static if (is(T == ubyte) || is(T == ushort) || is(T == uint) || is(T == ulong))
     {
         const decodedHeader = decodeRlpHeader(input);
-        assert(!decodedHeader.isList);
+        if (decodedHeader.isList)
+            throw new UnexpectedList("Expected " ~T.stringof ~ " got a list instead.");
         assert(decodedHeader.payloadLen <= T.sizeof);
 
         if (decodedHeader.payloadLen == 0)
@@ -161,7 +168,8 @@ T rlpDecode(T)(const(ubyte)[] input) @trusted
     else static if (is(T == string))
     {
         const decodedHeader = decodeRlpHeader(input);
-        assert(!decodedHeader.isList);
+        if (decodedHeader.isList)
+            throw new UnexpectedList("Expected string, got a list instead.");
         return cast(T) input[0 ..  decodedHeader.payloadLen];
     }
     else static if (is(T == ubyte[]))
@@ -276,12 +284,14 @@ unittest
     assert(rlpDecode!ulong([0x80]) == 0);
     assert(rlpDecode!ulong([0x09]) == 9);
     assert(rlpDecode!ulong([0x82, 0x05, 0x05]) == 0x0505);
+    assertThrown!UnexpectedList(rlpDecode!ulong([0xC0]));
 
     // uint
     assert(rlpDecode!uint([0x09]) == 9);
 
     // string
     assert(rlpDecode!string([0x83, 'd', 'o', 'g']) == "dog");
+    assertThrown!UnexpectedList(rlpDecode!string([0xC0]));
 
     // ubyte[]
     assert(rlpDecode!(ubyte[])([0xC0]) == []);
