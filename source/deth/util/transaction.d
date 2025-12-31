@@ -10,12 +10,24 @@ import core.sync;
 import std.conv : to;
 import std.stdio;
 import std.exception;
+import std.sumtype;
 
 import deth.util.types;
 import deth.util.rlp : rlpEncode, cutBytes;
 import deth.rpcconnector : RPCConnector;
 
-struct Transaction
+alias Transaction = SumType!(
+    LegacyTransaction
+);
+
+JSONValue toJSON(Transaction tx) pure @safe
+{
+    return tx.match!(
+        (LegacyTransaction legacyTx) => legacyTx.toJSON
+    );
+}
+
+struct LegacyTransaction
 {
     Nullable!Address from;
     Nullable!Address to;
@@ -89,9 +101,20 @@ static foreach (f, t; [
     mixin NamedParameter!(f, t);
 }
 
-struct SendableTransaction
+alias SendableTransaction = SumType!(
+    SendableLegacyTransaction
+);
+
+Hash send(ARGS...)(SendableTransaction tx, ARGS params) @safe
 {
-    Transaction tx;
+    return tx.match!(
+        (SendableLegacyTransaction legacyTx) => legacyTx.send(params)
+    );
+}
+
+struct SendableLegacyTransaction
+{
+    LegacyTransaction tx;
     private RPCConnector conn;
 
     Hash send(ARGS...)(ARGS params) @safe

@@ -20,5 +20,5 @@ trap cleanup EXIT INT TERM
 sleep 2
 
 # Run tests
-dub test
-dub run deth:devtest
+dub test -q
+dub run deth:devtest -q

@@ -9,8 +9,6 @@ import std : Nullable, BigInt;
 import std.stdio;
 import std.bitmanip : nativeToBigEndian;
 
-public import deth.util.transaction : Transaction;
-
 alias toHexString = toHexStringT!(LetterCase.lower);
 
 alias Address = ubyte[20];
