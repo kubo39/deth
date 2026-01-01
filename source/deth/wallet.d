@@ -65,8 +65,44 @@ struct Wallet
     bytes signTransaction(const Transaction tx, Address signer = Address.init) @safe pure
     {
         return tx.match!(
+            (const EIP1559Transaction eip1559Tx) => signTransaction(eip1559Tx, signer),
             (const LegacyTransaction legacyTx) => signTransaction(legacyTx, signer)
         );
+    }
+
+    ///
+    bytes signTransaction(const EIP1559Transaction tx, Address signer = Address.init) @safe pure
+    {
+        import keccak : keccak256;
+        import deth.util.types;
+
+        if (!tx.from.isNull)
+        {
+            signer = tx.from.get;
+            debug tracef("address is choosed from tx field %s", signer.convTo!string.ox);
+        }
+        else
+            debug tracef("address is choosed from optional argument %s", signer.convTo!string.ox);
+        enforce(signer in addrs, "Address %s not found", signer.convTo!string.ox);
+
+        auto c = addrs[signer];
+
+        bytes[] serialized = tx.serialize;
+        auto rlpEncoded = serialized.rlpEncode;
+
+        // FIXME: rlpEncode should handle accessList correctly.
+        if (rlpEncoded.length > 0 && rlpEncoded[$-1] == 0x80)
+            rlpEncoded[$-1] = 0xc0;
+        bytes rlpTx = tx.type ~ rlpEncoded;
+        debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
+
+        // the secp256k1 sign function calls keccak256() internally.
+        auto signature = c.sign(rlpTx);
+        bytes yParity = signature.recid == 0 ? [] : [cast(ubyte)1];
+        return tx.type ~ rlpEncode(
+            serialized ~ [
+                yParity, signature.r.cutBytes, signature.s.cutBytes
+            ]);
     }
 
     ///
