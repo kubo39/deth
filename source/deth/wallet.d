@@ -5,7 +5,9 @@ import std.experimental.logger;
 import std.exception : enforce;
 import secp256k1 : secp256k1;
 import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
-import deth.util.rlp : rlpEncode, cutBytes;
+import deth.util.rlp : cutBytes;
+
+import rlp.encode : rlpEncode = encode;
 
 /// struct to store several private keys in a single wallet
 struct Wallet

@@ -12,6 +12,7 @@
 		"memutils": "1.0.4",
 		"mir-linux-kernel": "1.0.1",
 		"openssl": "3.3.2",
+		"rlp": "0.2.1",
 		"secp256k1": "2.5.1",
 		"silly": "1.1.1",
 		"stdx-allocator": "2.77.5",

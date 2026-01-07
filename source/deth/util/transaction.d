@@ -12,7 +12,7 @@ import std.stdio;
 import std.exception;
 
 import deth.util.types;
-import deth.util.rlp : rlpEncode, cutBytes;
+import deth.util.rlp : cutBytes;
 import deth.rpcconnector : RPCConnector;
 
 struct Transaction

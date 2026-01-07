@@ -11,7 +11,7 @@ import std.array : array, join;
 import std.stdio;
 import rpc.protocol.json;
 import std.array : replace;
-import deth.util.rlp : rlpEncode, cutBytes;
+import deth.util.rlp : cutBytes;
 import deth.wallet : Wallet;
 
 import deth.util;
