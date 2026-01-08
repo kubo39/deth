@@ -15,7 +15,7 @@ import std.sumtype;
 import deth.util.types;
 import deth.rpcconnector : RPCConnector;
 
-import rlp.encode : rlpEncode = encode;
+import rlp.encode;
 
 // https://eips.ethereum.org/EIPS/eip-2718
 enum TransactionType : ubyte
@@ -39,7 +39,6 @@ JSONValue toJSON(Transaction tx) pure @safe
 
 struct EIP1559Transaction
 {
-    TransactionType type = TransactionType.EIP1559;
     Nullable!Address from;
     Nullable!ulong chainid;
     Nullable!ulong nonce;
@@ -50,6 +49,11 @@ struct EIP1559Transaction
     Nullable!BigInt value;
     Nullable!bytes data = [];
     Nullable!(bytes[]) accessList;
+
+    TransactionType type() pure const nothrow @safe
+    {
+        return TransactionType.EIP1559;
+    }
 
     JSONValue toJSON() pure const @safe
     {
@@ -72,91 +76,6 @@ struct EIP1559Transaction
             result["nonce"] = nonce.get.to!string(16).ox;
         return result.JSONValue;
     }
-
-    bytes[] serialize() pure const @safe
-    {
-        bytes[] encoded;
-
-        static immutable code1 = q{
-            if(field.isNull)
-                encoded ~= [[]];
-            else
-                encoded ~= field.get.convTo!bytes.cutBytes;
-        };
-        static foreach (field; [
-                "chainid", "nonce"
-            ])
-        {
-            mixin(code1.replace("field", field));
-        }
-        static immutable code2 = q{
-            if(field.isNull)
-                encoded ~= [];
-            else
-            {
-                auto fieldBytes = field.get.convTo!bytes;
-                if (fieldBytes.length == 1 && fieldBytes[0] == 0)
-                    encoded ~= [[]];
-                else
-                    encoded ~= fieldBytes;
-            }
-        };
-        static foreach (field; [
-                "maxPriorityFeePerGas", "maxFeePerGas", "gas",
-            ])
-        {
-            mixin(code2.replace("field", field));
-        }
-        if (!to.isNull)
-            encoded ~= to.get.convTo!bytes;
-        else
-            encoded ~= [];
-        static foreach (field; ["value"])
-        {
-            mixin(code2.replace("field", field));
-        }
-        if (!data.isNull)
-            encoded ~= data.get.dup;
-        else
-            encoded ~= [[]];
-        // FIXME
-        if (!accessList.isNull)
-        {
-            encoded ~= [[]];
-        }
-        else
-            encoded ~= [[]];
-        return encoded;
-    }
-}
-
- @("eip-1559 encoding test")
- unittest
- {
-    import deth.util.types;
-    import deth.util.rlp;
-    import std.bigint;
-
-    EIP1559Transaction tx = {
-        chainid: 1,
-        nonce: 0,
-        maxPriorityFeePerGas: "2000000000".BigInt,
-        maxFeePerGas: "3000000000".BigInt,
-        gas: "78009".BigInt,
-        to: "0x6b175474e89094c44da98b954eedeac495271d0f".convTo!Address,
-        value: "0".BigInt,
-        data: "0xa9059cbb0000000000000000000000005322b34c88ed0691971bf52a7047448f0f4efc840000000000000000000000000000000000000000000000001bc16d674ec80000".convTo!bytes,
-    };
-
-    bytes[] serialized = tx.serialize;
-    bytes rlpEncoded = tx.type ~ serialized.rlpEncode;
-
-    string expected = "0x02f8b00180847735940084b2d05e00830130b9946b175474e89094c44da98b954eedeac495271d0f80b844a9059cbb0000000000000000000000005322b34c88ed0691971bf52a7047448f0f4efc840000000000000000000000000000000000000000000000001bc16d674ec80000c0";
-    bytes expectedBytes = expected.convTo!bytes;
-    writeln("expected: ", expected);
-    writeln("Actual:   0x", rlpEncoded.toHexString);
-
-    //assert(rlpEncoded == expectedBytes);
 }
 
 struct LegacyTransaction

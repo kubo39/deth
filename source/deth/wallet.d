@@ -71,7 +71,7 @@ struct Wallet
     }
 
     ///
-    bytes signTransaction(const EIP1559Transaction tx, Address signer = Address.init) @safe pure
+    bytes signTransaction(const EIP1559Transaction tx, Address signer = Address.init) @trusted pure
     {
         import keccak : keccak256;
         import deth.util.types;
@@ -87,22 +87,64 @@ struct Wallet
 
         auto c = addrs[signer];
 
-        bytes[] serialized = tx.serialize;
-        auto rlpEncoded = serialized.rlpEncode;
+        bytes rlpTx = [tx.type];
+        Header header = { isList: true, payloadLen: 0 };
+        header.payloadLen =
+            tx.chainid.encodeLength() +
+            tx.nonce.encodeLength() +
+            tx.maxPriorityFeePerGas.encodeLength() +
+            tx.maxFeePerGas.encodeLength() +
+            tx.gas.encodeLength() +
+            tx.to.encodeLength() +
+            tx.value.encodeLength() +
+            tx.data.encodeLength() +
+            tx.accessList.encodeLength();
+        header.encodeHeader(rlpTx);
+        tx.chainid.encode(rlpTx);
+        tx.nonce.encode(rlpTx);
+        tx.maxPriorityFeePerGas.encode(rlpTx);
+        tx.maxFeePerGas.encode(rlpTx);
+        tx.gas.encode(rlpTx);
+        tx.to.encode(rlpTx);
+        tx.value.encode(rlpTx);
+        tx.data.encode(rlpTx);
+        tx.accessList.encode(rlpTx);
 
-        // FIXME: rlpEncode should handle accessList correctly.
-        if (rlpEncoded.length > 0 && rlpEncoded[$-1] == 0x80)
-            rlpEncoded[$-1] = 0xc0;
-        bytes rlpTx = tx.type ~ rlpEncoded;
         debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
 
         // the secp256k1 sign function calls keccak256() internally.
         auto signature = c.sign(rlpTx);
-        bytes yParity = signature.recid == 0 ? [] : [cast(ubyte)1];
-        return tx.type ~ rlpEncode(
-            serialized ~ [
-                yParity, signature.r.cutBytes, signature.s.cutBytes
-            ]);
+
+        bytes signedTx = [tx.type];
+        Header signedTxHeader = { isList: true, payloadLen: 0 };
+        signedTxHeader.payloadLen =
+            tx.chainid.encodeLength() +
+            tx.nonce.encodeLength() +
+            tx.maxPriorityFeePerGas.encodeLength() +
+            tx.maxFeePerGas.encodeLength() +
+            tx.gas.encodeLength() +
+            tx.to.encodeLength() +
+            tx.value.encodeLength() +
+            tx.data.encodeLength() +
+            tx.accessList.encodeLength() +
+            (cast(bool) signature.recid).encodeLength() +
+            signature.r.encodeLength() +
+            signature.s.encodeLength();
+        signedTxHeader.encodeHeader(signedTx);
+        tx.chainid.encode(signedTx);
+        tx.nonce.encode(signedTx);
+        tx.maxPriorityFeePerGas.encode(signedTx);
+        tx.maxFeePerGas.encode(signedTx);
+        tx.gas.encode(signedTx);
+        tx.to.encode(signedTx);
+        tx.value.encode(signedTx);
+        tx.data.encode(signedTx);
+        tx.accessList.encode(signedTx);
+        (cast(bool) signature.recid).encode(signedTx);
+        signature.r.encode(signedTx);
+        signature.s.encode(signedTx);
+
+        return signedTx;
     }
 
     ///

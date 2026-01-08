@@ -432,8 +432,8 @@ unittest
         value: 16.wei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
         chainid: conn.net_version.to!ulong,
-        maxFeePerGas: 200.wei,
-        maxPriorityFeePerGas: 20.wei,
+        maxPriorityFeePerGas: 1.gwei,
+        maxFeePerGas: 1.gwei + 20.wei,
     };
     SendableTransaction sendableTx = SendableEIP1559Transaction(eip1559tx, conn);
     const txHash = sendableTx.send();
