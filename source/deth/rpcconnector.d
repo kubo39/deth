@@ -9,8 +9,11 @@ import std.range : chunks;
 import std.algorithm : map, canFind;
 import std.array : array, join;
 import std.stdio;
+import std.sumtype;
+
 import rpc.protocol.json;
 import std.array : replace;
+import deth.util.transaction;
 import deth.wallet : Wallet;
 
 import deth.util;
@@ -97,6 +100,22 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     /// Wrapper for eth_estimateGas
     BigInt estimateGas(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
     {
+        return tx.match!(
+            (EIP1559Transaction eip1559Tx) => estimateGas(eip1559Tx, block),
+            (LegacyTransaction legacyTx) => estimateGas(legacyTx, block)
+        );
+    }
+
+    ///
+    BigInt estimateGas(BlockParameter)(EIP1559Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
+    {
+        mixin BlockNumberToJSON!block;
+        return super.eth_estimateGas(tx.toJSON, _block).BigInt;
+    }
+
+    ///
+    BigInt estimateGas(BlockParameter)(LegacyTransaction tx, BlockParameter block = BlockNumber.LATEST) @safe
+    {
         mixin BlockNumberToJSON!block;
         return super.eth_estimateGas(tx.toJSON, _block).BigInt;
     }
@@ -156,7 +175,6 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         {
             tx = Nullable!TransactionReceipt(a.convTo!TransactionReceipt);
         }
-
         return tx;
     }
 
@@ -179,13 +197,63 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return hash;
     }
 
+    ///
+    Hash sendRawTransaction(const EIP1559Transaction tx) @safe
+    {
+        auto rawTx = wallet.signTransaction(tx);
+        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
+        tracef("sent tx %s", hash.convTo!string.ox);
+        return hash;
+    }
+
+    ///
+    Hash sendRawTransaction(const LegacyTransaction tx) @safe
+    {
+        auto rawTx = wallet.signTransaction(tx);
+        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
+        tracef("sent tx %s", hash.convTo!string.ox);
+        return hash;
+    }
+
     /// Wrapper for method eth_sendTransaction
     /// Params:
     ///   tx = Transaction to send
     /// Returns: Hash of sended tx
-    Hash sendTransaction(const Transaction tx) @safe
+    Hash sendTransaction(Transaction tx) @safe
     {
+        return tx.match!(
+            (const EIP1559Transaction eip1559Tx) => sendTransaction(eip1559Tx),
+            (const LegacyTransaction legacyTx) => sendTransaction(legacyTx)
+        );
+    }
 
+    ///
+    Hash sendTransaction(const EIP1559Transaction tx) @safe
+    {
+        JSONValue jtx = ["from": tx.from.get.convTo!string.ox];
+        if (!tx.to.isNull)
+            jtx["to"] = tx.to.get.convTo!string.ox;
+        if (!tx.gas.isNull)
+            jtx["gas"] = tx.gas.get.convTo!string.ox;
+        if (!tx.value.isNull)
+            jtx["value"] = tx.value.get.convTo!string.ox;
+        if (!tx.data.isNull)
+            jtx["data"] = tx.data.get.convTo!string.ox;
+        if (!tx.chainid.isNull)
+            jtx["chainid"] = tx.chainid.to!string;
+        if (!tx.maxFeePerGas.isNull)
+            jtx["maxFeePerGas"] = tx.maxFeePerGas.to!string;
+        if (!tx.maxPriorityFeePerGas.isNull)
+            jtx["maxPriorityFeePerGas"] = tx.maxPriorityFeePerGas.to!string;
+        logf("Json string: %s", jtx.toString);
+        auto hash = eth_sendTransaction(jtx).convTo!Hash;
+        tracef("sent tx %s", hash.convTo!string.ox);
+        return hash;
+    }
+
+    ///
+    Hash sendTransaction(const LegacyTransaction tx) @safe
+    {
         JSONValue jtx = ["from": tx.from.get.convTo!string.ox,];
         if (!tx.value.isNull)
             jtx["value"] = tx.value.get.convTo!string.ox;
@@ -300,14 +368,13 @@ unittest
     conn.wallet.addPrivateKey(
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
     );
-    assert(conn.accounts[0] == alice);
 
-    Transaction tx = {
+    LegacyTransaction legacyTx = {
         to: bob,
         value: 16.wei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
     };
-    auto txHash = SendableTransaction(tx, conn).send();
+    auto txHash = SendableLegacyTransaction(legacyTx, conn).send();
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
     assert(!conn.getTransactionReceipt(txHash).isNull);
@@ -321,28 +388,62 @@ unittest
     auto conn = new RPCConnector("http://127.0.0.1:8545");
 
     const accounts = conn.remoteAccounts();
-    const alice = accounts[0];
-    const bob = accounts[1];
+    // use different accounts for test to avoid nonce conflicts.
+    const alice = accounts[2];
+    const bob = accounts[3];
 
     // anvil's default private key.
     conn.wallet.addPrivateKey(
-        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
     );
-    assert(conn.accounts[0] == alice);
 
-    Transaction tx = {
+    LegacyTransaction legacyTx = {
         to: bob,
         value: 16.wei,
         data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
         chainid: conn.net_version.to!ulong,
     };
-    const txHash = SendableTransaction(tx, conn).send();
+    const txHash = SendableLegacyTransaction(legacyTx, conn).send();
     conn.getTransaction(txHash);
     conn.waitForTransactionReceipt(txHash);
     const receipt = conn.getTransactionReceipt(txHash);
     assert(!receipt.isNull);
     assert(receipt.get.from == alice);
     assert(receipt.get.to == bob);
+}
+
+@("sending eip-1559 transaction type 2")
+unittest
+{
+    auto conn = new RPCConnector("http://127.0.0.1:8545");
+    const accounts = conn.remoteAccounts();
+    // use different accounts for test to avoid nonce conflicts.
+    const alice = accounts[4];
+    const bob = accounts[5];
+
+    // anvil's default private key.
+    conn.wallet.addPrivateKey(
+        "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926"
+    );
+
+    EIP1559Transaction eip1559tx = {
+        from: alice,
+        to: bob,
+        value: 16.wei,
+        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
+        chainid: conn.net_version.to!ulong,
+        maxPriorityFeePerGas: 1.gwei,
+        maxFeePerGas: 1.gwei + 20.wei,
+    };
+    SendableTransaction sendableTx = SendableEIP1559Transaction(eip1559tx, conn);
+    const txHash = sendableTx.send();
+    conn.getTransaction(txHash);
+    conn.waitForTransactionReceipt(txHash);
+    const receipt = conn.getTransactionReceipt(txHash);
+    assert(!receipt.isNull);
+    assert(receipt.get.from == alice);
+    assert(receipt.get.to == bob);
+    assert(receipt.get.type == TransactionType.EIP1559);
 }
 
 // https://eips.ethereum.org/EIPS/eip-1186

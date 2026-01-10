@@ -9,8 +9,6 @@ import std : Nullable, BigInt;
 import std.stdio;
 import std.bitmanip : nativeToBigEndian;
 
-public import deth.util.transaction : Transaction;
-
 alias toHexString = toHexStringT!(LetterCase.lower);
 
 alias Address = ubyte[20];
@@ -191,6 +189,8 @@ To convTo(To, _From)(const _From f) @safe pure
                         tx.logs[i].topics ~= topic.str[2 .. $].convTo!Hash;
                     }
                 }
+                if (!f[`type`].isNull)
+                    tx.type = f[`type`].str[2 .. $].to!ulong(16);
             }();
             return tx;
         }
@@ -355,6 +355,7 @@ struct TransactionReceipt
     Nullable!Address contractAddress; // DATA, 20 Bytes - The contract address created, if the transaction was a contract creation, otherwise null.
     Log[] logs; // Array - Array of log objects, which this transaction generated.
     bytes logsBloom; // DATA, 256 Bytes - Bloom filter for light clients to quickly retrieve related logs.a
+    ulong type; // QUANTITY - integer of the transaction type, 0x0 for legacy transactions, 0x1 for access list types, 0x2 for dynamic fees.
 }
 
 struct TransactionInfo
