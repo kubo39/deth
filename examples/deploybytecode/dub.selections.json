@@ -12,7 +12,7 @@
 		"memutils": "1.0.4",
 		"mir-linux-kernel": "1.0.1",
 		"openssl": "3.3.2",
-		"rlp": "0.2.1",
+		"rlp": {"version":"25a12d75497b354cc1154575a70d64c25c273088","repository":"git+https://github.com/kubo39/rlp"},
 		"secp256k1": "2.5.1",
 		"silly": "1.1.1",
 		"stdx-allocator": "2.77.5",

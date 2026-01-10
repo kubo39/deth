@@ -1,7 +1,7 @@
 module deth.rpcconnector;
 
 import std.digest : toHexString;
-import std : Nullable;
+import std.typecons : Nullable;
 import std.json : JSONValue;
 import std.bigint;
 import std.conv : to;
@@ -11,7 +11,6 @@ import std.array : array, join;
 import std.stdio;
 import rpc.protocol.json;
 import std.array : replace;
-import deth.util.rlp : cutBytes;
 import deth.wallet : Wallet;
 
 import deth.util;

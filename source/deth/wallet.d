@@ -1,13 +1,14 @@
 /// PrivateKeys manipulator
 module deth.wallet;
 
+import std.bigint;
 import std.experimental.logger;
 import std.exception : enforce;
 import secp256k1 : secp256k1;
 import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
-import deth.util.rlp : cutBytes;
 
-import rlp.encode : rlpEncode = encode;
+import rlp.encode : encode, encodeLength;
+import rlp.header;
 
 /// struct to store several private keys in a single wallet
 struct Wallet
@@ -73,28 +74,63 @@ struct Wallet
         enforce(signer in addrs, "Address %s not found", signer.convTo!string.ox);
 
         auto c = addrs[signer];
-        bytes rlpTx = tx.serialize.rlpEncode;
+
+        bytes rlpTx;
+        Header header = { isList: true, payloadLen: 0 };
+        header.payloadLen =
+            tx.nonce.encodeLength() +
+            tx.gasPrice.encodeLength()+
+            tx.gas.encodeLength() +
+            tx.to.encodeLength() +
+            tx.value.encodeLength() +
+            tx.data.encodeLength();
+        if (!tx.chainid.isNull)
+        {
+            header.payloadLen += tx.chainid.encodeLength();
+            header.payloadLen += 2;
+        }
+        header.encodeHeader(rlpTx);
+        tx.nonce.encode(rlpTx);
+        tx.gasPrice.encode(rlpTx);
+        tx.gas.encode(rlpTx);
+        tx.to.encode(rlpTx);
+        tx.value.encode(rlpTx);
+        tx.data.encode(rlpTx);
+        if (!tx.chainid.isNull)
+        {
+            tx.chainid.encode(rlpTx);
+            rlpTx ~= [0x80, 0x80];
+        }
+
         debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
+
         // the secp256k1 sign function calls keccak256() internally.
         auto signature = c.sign(rlpTx);
         bytes rawTx;
-        if (tx.chainid.isNull)
-        {
-            ulong v = 27 + signature.recid;
-            rawTx = rlpEncode(
-                    tx.serialize ~ v.convTo!bytes.cutBytes
-                    ~ signature.r.cutBytes ~ signature.s.cutBytes);
-        }
-        else
-        {
-            /// eip 155 signing
-            ulong v = signature.recid + tx.chainid.get * 2 + 35;
-            rawTx = rlpEncode(tx.serialize[0 .. $ - 3] ~ [
-                    v.convTo!bytes.cutBytes, signature.r.cutBytes,
-                    signature.s.cutBytes
-                    ]);
-        }
-
+        Header rawTxHeader = { isList: true, payloadLen: 0 };
+        ulong v = tx.chainid.isNull
+            ? 27 + signature.recid
+            : signature.recid + tx.chainid.get * 2 + 35 /* eip 155 signing */ ;
+        rawTxHeader.payloadLen =
+            tx.nonce.encodeLength() +
+            tx.gasPrice.encodeLength()+
+            tx.gas.encodeLength() +
+            tx.to.encodeLength() +
+            tx.value.encodeLength() +
+            tx.data.encodeLength() +
+            v.encodeLength() +
+            signature.r.encodeLength() +
+            signature.s.encodeLength();
+        rawTxHeader.encodeHeader(rawTx);
+        tx.nonce.encode(rawTx);
+        tx.gasPrice.encode(rawTx);
+        tx.gas.encode(rawTx);
+        tx.to.encode(rawTx);
+        tx.value.encode(rawTx);
+        tx.data.encode(rawTx);
+        v.encode(rawTx);
+        signature.r.encode(rawTx);
+        signature.s.encode(rawTx);
         return rawTx;
     }
 }
