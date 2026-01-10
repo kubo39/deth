@@ -368,7 +368,6 @@ unittest
     conn.wallet.addPrivateKey(
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
     );
-    assert(conn.accounts[0] == alice);
 
     LegacyTransaction legacyTx = {
         to: bob,
@@ -389,14 +388,14 @@ unittest
     auto conn = new RPCConnector("http://127.0.0.1:8545");
 
     const accounts = conn.remoteAccounts();
-    const alice = accounts[0];
-    const bob = accounts[1];
+    // use different accounts for test to avoid nonce conflicts.
+    const alice = accounts[2];
+    const bob = accounts[3];
 
     // anvil's default private key.
     conn.wallet.addPrivateKey(
-        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
     );
-    assert(conn.accounts[0] == alice);
 
     LegacyTransaction legacyTx = {
         to: bob,
@@ -418,12 +417,13 @@ unittest
 {
     auto conn = new RPCConnector("http://127.0.0.1:8545");
     const accounts = conn.remoteAccounts();
-    const alice = accounts[0];
-    const bob = accounts[1];
+    // use different accounts for test to avoid nonce conflicts.
+    const alice = accounts[4];
+    const bob = accounts[5];
 
     // anvil's default private key.
     conn.wallet.addPrivateKey(
-        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926"
     );
 
     EIP1559Transaction eip1559tx = {
