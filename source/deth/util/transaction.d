@@ -12,7 +12,6 @@ import std.stdio;
 import std.exception;
 
 import deth.util.types;
-import deth.util.rlp : cutBytes;
 import deth.rpcconnector : RPCConnector;
 
 struct Transaction
@@ -47,32 +46,6 @@ struct Transaction
         if (!nonce.isNull)
             result["nonce"] = nonce.get.to!string(16).ox;
         return result.JSONValue;
-    }
-
-    bytes[] serialize() pure const @safe
-    {
-        bytes[] encoded = [];
-        if (nonce.isNull)
-            encoded ~= [[]];
-        else
-            encoded ~= cutBytes(nonce.get.convTo!bytes);
-
-        static immutable code = q{
-            if(field.isNull)
-                encoded ~= [[]];
-            else
-                encoded ~= field.get.convTo!bytes;
-        };
-        static foreach (field; ["gasPrice", "gas", "to", "value"])
-        {
-            mixin(code.replace("field", field));
-        }
-        encoded ~= data.get.dup;
-        if (!chainid.isNull)
-        {
-            encoded ~= [chainid.get.convTo!bytes.cutBytes, [], []];
-        }
-        return encoded;
     }
 }
 
