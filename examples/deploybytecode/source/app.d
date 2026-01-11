@@ -27,8 +27,8 @@ void main()
     };
 
     const txHash = conn.sendTransaction(tx);
-    const receipt = conn.getTransactionReceipt(txHash);
-    const contractAddress = receipt.get.contractAddress;
+    const receipt = conn.waitForTransactionReceipt(txHash);
+    const contractAddress = receipt.contractAddress;
     assert(!contractAddress.isNull);
     writeln("Deployed contract at address: ", contractAddress.get.convTo!string.ox);
 
