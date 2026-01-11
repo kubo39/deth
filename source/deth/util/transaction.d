@@ -1,16 +1,15 @@
 module deth.util.transaction;
 
-import std : Nullable;
-import std.json : JSONValue;
-import std.bigint : BigInt;
-import std.digest : toHexString;
-import std.array : replace;
-import std.format;
 import core.sync;
+import std.array : replace;
+import std.bigint : BigInt;
 import std.conv : to;
-import std.stdio;
+import std.digest : toHexString;
 import std.exception;
+import std.format;
+import std.json : JSONValue;
 import std.sumtype;
+import std.typecons : Nullable;
 
 import deth.util.types;
 import deth.rpcconnector : RPCConnector;

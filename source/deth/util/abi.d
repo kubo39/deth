@@ -1,13 +1,15 @@
 module deth.util.abi;
 
+import std.algorithm : map, fold;
+import std.array : array, replace;
+import std.bigint : BigInt;
+import std.conv : to, text;
+import std.range : ElementType, iota;
+import std.string : join;
 import std.traits : isInstanceOf, isIntegral, isBoolean, isStaticArray,
     isDynamicArray, FieldNameTuple, isAggregateType, Unconst;
-import std : ElementType;
-import std : to, text;
-import std : BigInt, toHex, replace;
-import std : map, join, fold;
-import std : array, iota;
-import std : Tuple;
+import std.typecons : Tuple;
+
 import deth.util.types;
 
 /// SLOT SIZE 32 bytes

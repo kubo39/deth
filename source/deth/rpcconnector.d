@@ -1,26 +1,23 @@
 module deth.rpcconnector;
 
-import std.digest : toHexString;
-import std.typecons : Nullable;
-import std.json : JSONValue;
-import std.bigint;
-import std.conv : to;
-import std.range : chunks;
+import core.thread : Thread, dur;
 import std.algorithm : map, canFind;
-import std.array : array, join;
-import std.stdio;
+import std.array : array, replace, join;
+import std.bigint;
+import std.digest : toHexString;
+import std.conv : to;
+import std.exception : enforce;
+import std.logger;
+import std.json : JSONValue;
 import std.sumtype;
+import std.typecons : Nullable;
 
-import rpc.protocol.json;
-import std.array : replace;
+import deth.util;
 import deth.util.transaction;
 import deth.wallet : Wallet;
 
-import deth.util;
+import rpc.protocol.json;
 import secp256k1 : secp256k1;
-import core.thread : Thread, dur, Fiber;
-import std.exception : enforce;
-import std.experimental.logger;
 
 enum BlockNumber
 {

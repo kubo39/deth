@@ -1,22 +1,24 @@
 module deth.contract;
 
-import std : toHexString, to, Tuple;
 import core.sync: Mutex;
-import structjson;
-import std.bigint : BigInt;
-import std.stdio;
-import std.array : replace, join;
-import std.string : indexOf, format;
 import std.algorithm : canFind;
+import std.array : replace, join;
+import std.bigint : BigInt;
+import std.conv : to;
+import std.digest : toHexString;
+import std.logger;
+import std.string : indexOf, format;
 import std.sumtype;
+import std.typecons : Tuple;
 
-import deth.util.abi : encode, decode;
-import deth.util.types;
 import deth.rpcconnector;
+import deth.util.abi : encode, decode;
 import deth.util.transaction;
-import keccak : keccak256;
+import deth.util.types;
 
-import std.experimental.logger;
+import keccak : keccak256;
+import structjson;
+
 
 alias Selector = ubyte[4];
 
@@ -181,8 +183,6 @@ private string allFunctions(ContractABI abi)
         }
     }
     return code;
-
-
 }
 
 /// structure presenting contract's abi

@@ -7,7 +7,7 @@ dependency "rlp" repository="git+https://github.com/kubo39/rlp" version="25a12d7
 dependency "structjson" version="~>2.100.1"
 dependency "silly" version="~>1.1.1"
 dependency "tynukrpc" version="~>1.2.0"
-dependency "keccak-tiny" version="*"
+dependency "keccak-tiny" version="~>1.2.1"
 dependency "secp256k1" version="~>2.5"
 targetType "library"
 subConfiguration "keccak-tiny" "library"
