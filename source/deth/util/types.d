@@ -1,13 +1,13 @@
 module deth.util.types;
 
-import std.algorithm : map, reverse;
+import std.algorithm : map;
 import std.array : array;
-import std.conv : to;
-import std : toHexStringT = toHexString, LetterCase;
-import std.json : JSONValue;
-import std : Nullable, BigInt;
-import std.stdio;
+import std.bigint : BigInt;
 import std.bitmanip : nativeToBigEndian;
+import std.conv : to;
+import std.digest : toHexStringT = toHexString, LetterCase;
+import std.json : JSONValue;
+import std.typecons : Nullable;
 
 alias toHexString = toHexStringT!(LetterCase.lower);
 
@@ -17,13 +17,17 @@ alias bytes = ubyte[];
 
 bytes hexToBytes(string s) @safe pure
 {
-    import std : chunks, map, array, startsWith;
-    import std.range : padLeft;
+    import std.algorithm : map, startsWith;
+    import std.array : array;
+    import std.range : chunks, padLeft;
 
     if (s.startsWith(`0x`))
         s = s[2 .. $];
 
-    return s.padLeft('0', s.length + s.length % 2).chunks(2).map!q{a.parse!ubyte(16)}.array;
+    return s.padLeft('0', s.length + s.length % 2)
+        .chunks(2)
+        .map!q{a.parse!ubyte(16)}
+        .array;
 }
 
 string toHex(const(BigInt) x) @safe pure
@@ -89,8 +93,8 @@ To convTo(To, _From)(const _From f) @safe pure
     {
         static if (is(To == bytes))
         {
-            import std : chunks, replace, map, array;
-            import std.range : padLeft;
+            import std.array : replace;
+            import std.range : chunks, padLeft;
 
             auto hex = f.toHex.replace("_", "");
             return hex.padLeft('0', hex.length + hex.length % 2).to!string.hexToBytes;
@@ -261,14 +265,15 @@ To convTo(To, _From)(const _From f) @safe pure
 @("convTo")
 unittest
 {
-    import std;
+    import std.string : join;
+    import std.range : iota;
 
     ///looks like big endian coding
     bytes becodedNum = [15, 255, 255, 255, 255, 170];
     assert(`0xfffffffffaa`.BigInt.convTo!bytes == becodedNum);
 
     Address addr;
-    assert(addr.convTo!string == join(20.iota.array.map!q{"00"}));
+    assert(addr.convTo!string == 20.iota.array.map!q{"00"}.join);
 
     enum T
     {
@@ -311,8 +316,6 @@ bytes padRight(const bytes data, ubyte b, ulong count) pure @safe
 @("0x prefix")
 unittest
 {
-    import std;
-
     assert("0x123" == `123`.ox);
     char[4] t;
     t[] = 'a';

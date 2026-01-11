@@ -2,14 +2,14 @@
 module deth.wallet;
 
 import std.bigint;
-import std.experimental.logger;
 import std.exception : enforce;
+import std.logger;
 import std.sumtype;
 
-import secp256k1 : secp256k1;
 import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
 import deth.util.transaction;
 
+import secp256k1 : secp256k1;
 import rlp.encode : encode, encodeLength;
 import rlp.header;
 

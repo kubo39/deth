@@ -1,10 +1,9 @@
-import std.json;
-import std.array : replace;
-import std.stdio;
-import std.conv : to, text;
 import std.bigint : BigInt;
+import std.process : environment;
+import std.logger;
+import std.stdio;
+
 import deth;
-import std.experimental.logger;
 
 enum abiPath = "contractBuild/Test.abi";
 enum binPath = "contractBuild/Test.bin";
@@ -16,7 +15,6 @@ void main()
 {
     globalLogLevel = LogLevel.all;
     TestContract.bytecode = import(binPath).convTo!bytes;
-    import std.process : environment;
 
     auto host = environment.get("RPC_HOST", "127.0.0.1");
     auto conn = new RPCConnector("http://" ~ host ~ ":8545");
