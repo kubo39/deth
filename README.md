@@ -1,31 +1,12 @@
 # Deth
 
+[![CI Status](https://github.com/kubo39/deth/actions/workflows/ci.yml/badge.svg)](https://github.com/kubo39/deth/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-D library for interacting to contracts
+## What is Deth?
 
-## Dependencies
+Deth(D for Ethereum) is a D library for interacting with EVM blockchains.
 
-- [libsecp256k1](https://github.com/bitcoin-core/secp256k1/)
+## Provenance note
 
-## Example
-
-- Contracts
-
-```d
-import deth;
-
-static immutable TokenABI = ContractABI.load!"build/DFT.abi";
-alias Token = Contract!TokenABI;
-
-void main()
-{
-    auto conn = new RPCConnector("http://localhost:8545");
-    Token.deployedBytecode = import("build/DFT.bin").convTo!bytes;
-    /// don't paste pk in code
-    conn.wallet.addPrivateKey("beb75b08049e9316d1375999c7d968f3c23fdf606b296fcdfc9a41cdd7e7347c");
-
-    auto token = new Token(conn, "0x95710DC9F373E58df72692C3459D93Cd1BC2C6C5".convTo!Address);
-    token.transfer("0xdddddddd0d0d0d0d0d0d0ddddddddd".convTo!Address, 0xd.wei).send();
-}
-```
+This is a fork of [original deth project](https://gitlab.com/d-eth/deth).
