@@ -9,7 +9,7 @@ import std.exception;
 import std.format;
 import std.json : JSONValue;
 import std.sumtype;
-import std.typecons : Nullable;
+import std.typecons : Nullable, nullable;
 
 import deth.util.types;
 import deth.rpcconnector : RPCConnector;
@@ -21,21 +21,186 @@ import secp256k1 : Signature;
 // https://eips.ethereum.org/EIPS/eip-2718
 enum TransactionType : ubyte
 {
-    LEGACY = 0,
-    EIP1559 = 2
+    LEGACY  = 0,
+    EIP2930 = 1,
+    EIP1559 = 2,
 }
 
 alias Transaction = SumType!(
+    LegacyTransaction,
+    EIP2930Transaction,
     EIP1559Transaction,
-    LegacyTransaction
 );
 
 JSONValue toJSON(Transaction tx) pure @safe
 {
     return tx.match!(
+        (LegacyTransaction legacyTx) => legacyTx.toJSON,
+        (EIP2930Transaction eip2930Tx) => eip2930Tx.toJSON,
         (EIP1559Transaction eip1559Tx) => eip1559Tx.toJSON,
-        (LegacyTransaction legacyTx) => legacyTx.toJSON
     );
+}
+
+struct EIP2930Transaction
+{
+    Nullable!Address from;
+    Nullable!ulong chainid;
+    Nullable!ulong nonce;
+    Nullable!BigInt gasPrice;
+    Nullable!BigInt gas;
+    Nullable!Address to;
+    Nullable!BigInt value;
+    Nullable!bytes data = [];
+    Nullable!AccessList accessList;
+
+    TransactionType type() pure const nothrow @safe
+    {
+        return TransactionType.EIP2930;
+    }
+
+    JSONValue toJSON() pure const @safe
+    {
+        string[string] result;
+        static foreach (field; [
+                "from", "to", "gasPrice", "gas", "value", "data",
+            ])
+        {
+            mixin(q{if (!%s.isNull)
+                result[`%s`] = %s.get.convTo!string.ox;}.format(field, field, field));
+        }
+        static foreach (field; [
+                "chainid", "accessList",
+            ])
+        {
+            mixin(q{if (!%s.isNull)
+                result[`%s`] = %s.get.to!string;}.format(field, field, field));
+        }
+        if (!nonce.isNull)
+            result["nonce"] = nonce.get.to!string(16).ox;
+        return result.JSONValue;
+    }
+
+    bytes serializeToRLP() pure const @safe
+    {
+        bytes rlpTx = [type];
+        Header header = { isList: true, payloadLen: 0 };
+        header.payloadLen =
+            chainid.encodeLength() +
+            nonce.encodeLength() +
+            gasPrice.encodeLength() +
+            gas.encodeLength() +
+            to.encodeLength() +
+            value.encodeLength() +
+            data.encodeLength() +
+            accessList.encodeLength();
+        header.encodeHeader(rlpTx);
+        chainid.encode(rlpTx);
+        nonce.encode(rlpTx);
+        gasPrice.encode(rlpTx);
+        gas.encode(rlpTx);
+        to.encode(rlpTx);
+        value.encode(rlpTx);
+        data.encode(rlpTx);
+        accessList.encode(rlpTx);
+
+        return rlpTx;
+    }
+
+    bytes serializeToSignedRLP(Signature signature) pure const @safe
+    {
+        bytes signedTx = [type];
+        Header signedTxHeader = { isList: true, payloadLen: 0 };
+        signedTxHeader.payloadLen =
+            chainid.encodeLength() +
+            nonce.encodeLength() +
+            gasPrice.encodeLength() +
+            gas.encodeLength() +
+            to.encodeLength() +
+            value.encodeLength() +
+            data.encodeLength() +
+            accessList.encodeLength() +
+            (cast(bool) signature.recid).encodeLength() +
+            signature.r.encodeLength() +
+            signature.s.encodeLength();
+        signedTxHeader.encodeHeader(signedTx);
+        chainid.encode(signedTx);
+        nonce.encode(signedTx);
+        gasPrice.encode(signedTx);
+        gas.encode(signedTx);
+        to.encode(signedTx);
+        value.encode(signedTx);
+        data.encode(signedTx);
+        accessList.encode(signedTx);
+        (cast(bool) signature.recid).encode(signedTx);
+        signature.r.encode(signedTx);
+        signature.s.encode(signedTx);
+
+        return signedTx;
+    }
+}
+
+@("eip-2930")
+unittest
+{
+    // the case is taken from https://github.com/ethers-io/ethers.js
+    AccessListItem[] accessList = [
+        AccessListItem(
+            "0x8a632c23bf807681570c3fb6632ce99fd98bdb23".convTo!Address,
+            [
+                "0x1c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25c".BigInt,
+                "0x2b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919".BigInt,
+                "0xc266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5".BigInt,
+                "0xf49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824e".BigInt
+            ]
+        ),
+        AccessListItem(
+            "0x2d78b31ba09e8a2888d655e3d000fe95c63789c4".convTo!Address,
+            [
+                "0x1c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25c".BigInt,
+                "0x2b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919".BigInt,
+                "0xc266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5".BigInt,
+                "0xf49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824e".BigInt
+            ]
+        ),
+        AccessListItem(
+            "0x3199b3433ee7f3edcae901cbce64c4e81125f7da".convTo!Address,
+            [
+                "0x1c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25c".BigInt,
+                "0x2b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919".BigInt,
+                "0xc266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5".BigInt,
+                "0xf49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824e".BigInt
+            ]
+        ),
+        AccessListItem(
+            "0xb8d669949683a728f76919fe2cc9896216e00a81".convTo!Address,
+            [
+                "0x1c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25c".BigInt,
+                "0x2b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919".BigInt,
+                "0xc266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5".BigInt,
+                "0xf49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824e".BigInt
+            ]
+        )
+    ];
+    EIP2930Transaction tx = {
+        chainid: 0xef36a8,
+        nonce: 577,
+        gas: "0xbe431918".BigInt,
+        gasPrice: "0xb3b1aaeb58".BigInt,
+        to: "0x4d1060d970674619005137921969b4bfe3eea6b8".convTo!Address,
+        value: "0xc72c".BigInt,
+        data: "0xe07f2239c398167e747939f64b2ed9458db8aa10eb367bfab1976a0bc6693cf152dd8d13aa16e4d655a38d6ac64eae0932e13d649f9516fca834cd5a49c7b6e5ba1286a30eea1ac2e89c78441c5418250f8e30".convTo!bytes,
+        accessList: accessList.nullable,
+    };
+    auto rlpTx = tx.serializeToRLP();
+    auto expected = "0x01f902f683ef36a882024185b3b1aaeb5884be431918944d1060d970674619005137921969b4bfe3eea6b882c72cb853e07f2239c398167e747939f64b2ed9458db8aa10eb367bfab1976a0bc6693cf152dd8d13aa16e4d655a38d6ac64eae0932e13d649f9516fca834cd5a49c7b6e5ba1286a30eea1ac2e89c78441c5418250f8e30f90274f89b948a632c23bf807681570c3fb6632ce99fd98bdb23f884a01c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25ca02b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919a0c266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5a0f49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824ef89b942d78b31ba09e8a2888d655e3d000fe95c63789c4f884a01c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25ca02b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919a0c266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5a0f49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824ef89b943199b3433ee7f3edcae901cbce64c4e81125f7daf884a01c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25ca02b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919a0c266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5a0f49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824ef89b94b8d669949683a728f76919fe2cc9896216e00a81f884a01c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25ca02b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919a0c266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5a0f49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824e".convTo!bytes;
+    assert(rlpTx == expected);
+
+    import secp256k1 : secp256k1;
+    auto privateKey = "0x77065b8ddb2f89d3d2d83f46d0147efc081e3a3f1012406c698a9ce364b324e9".convTo!Hash;
+    auto c = new secp256k1(privateKey);
+    auto signedRlpTx = tx.serializeToSignedRLP(c.sign(rlpTx));
+    auto expectedSigned = "0x01f9033983ef36a882024185b3b1aaeb5884be431918944d1060d970674619005137921969b4bfe3eea6b882c72cb853e07f2239c398167e747939f64b2ed9458db8aa10eb367bfab1976a0bc6693cf152dd8d13aa16e4d655a38d6ac64eae0932e13d649f9516fca834cd5a49c7b6e5ba1286a30eea1ac2e89c78441c5418250f8e30f90274f89b948a632c23bf807681570c3fb6632ce99fd98bdb23f884a01c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25ca02b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919a0c266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5a0f49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824ef89b942d78b31ba09e8a2888d655e3d000fe95c63789c4f884a01c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25ca02b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919a0c266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5a0f49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824ef89b943199b3433ee7f3edcae901cbce64c4e81125f7daf884a01c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25ca02b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919a0c266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5a0f49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824ef89b94b8d669949683a728f76919fe2cc9896216e00a81f884a01c3124f271ea52d9e881bdd52c63020fb7c08a1b96263030415e4bc8146db25ca02b6d4aa754fa44f0e86e6fa0a936048674ffc4fef24c5a2b317c740630901919a0c266c51508b93a8f933e2e64505e458ac26cdb93e8e0bc7bd1609552b6210aa5a0f49934500a155bedea4f0bf25bfc62161fcb74fbf17ca480333f4747d5ad824e80a0512308d1c72f697a25785a9c2ce00a55ba530c49a024f46f0cc26dd0e8358576a0574f05518fc3f6ba63cfb917242f2220fb470c8166135079c7bb7fc36054d5d7".convTo!bytes;
+    assert(signedRlpTx == expectedSigned);
 }
 
 struct EIP1559Transaction
@@ -274,15 +439,17 @@ static foreach (f, t; [
 }
 
 alias SendableTransaction = SumType!(
+    SendableLegacyTransaction,
+    SendableEIP2930Transaction,
     SendableEIP1559Transaction,
-    SendableLegacyTransaction
 );
 
 Hash send(ARGS...)(SendableTransaction tx, ARGS params) @safe
 {
     return tx.match!(
+        (SendableLegacyTransaction legacyTx) => legacyTx.send(params),
+        (SendableEIP2930Transaction eip2930Tx) => eip2930Tx.send(params),
         (SendableEIP1559Transaction eip1559Tx) => eip1559Tx.send(params),
-        (SendableLegacyTransaction legacyTx) => legacyTx.send(params)
     );
 }
 
@@ -313,6 +480,66 @@ struct SendableEIP1559Transaction
                 tx.maxPriorityFeePerGas = params[i].value;
             else static if (is(ARGS[i] == MaxFeePerGas))
                 tx.maxFeePerGas = params[i].value;
+            else static if (is(ARGS[i] == AccessList))
+                tx.accessList = params[i].value;
+            else
+                static assert(0, "Not supported param " ~ ARGS[i].stringof);
+        }
+
+        if (tx.from.isNull)
+        {
+            auto accList = conn.accounts ~ conn.remoteAccounts;
+            enforce(accList.length > 0, " No accounts are unlocked");
+            tx.from = accList[0];
+        }
+        if (tx.gas.isNull)
+        {
+            tx.gas = conn.estimateGas(tx) * conn.gasEstimatePercentage / 100;
+        }
+        synchronized
+        {
+            if (tx.nonce.isNull)
+            {
+                tx.nonce = conn.getTransactionCount(tx.from.get);
+            }
+            if (conn.isUnlocked(tx.from.get))
+            {
+                return conn.sendRawTransaction(tx);
+            }
+            else if (conn.isUnlockedRemote(tx.from.get))
+            {
+                return conn.sendTransaction(tx);
+            }
+        }
+        assert(0);
+    }
+}
+
+struct SendableEIP2930Transaction
+{
+    EIP2930Transaction tx;
+    private RPCConnector conn;
+
+    Hash send(ARGS...)(ARGS params) @safe
+    {
+        static foreach (i; 0 .. ARGS.length)
+        {
+            static if (is(ARGS[i] == From))
+                tx.from = params[i].value;
+            else static if (is(ARGS[i] == To))
+                tx.to = params[i].value;
+            else static if (is(ARGS[i] == Value))
+                tx.value = params[i].value;
+            else static if (is(ARGS[i] == Gas))
+                tx.gas = params[i].value;
+            else static if (is(ARGS[i] == Nonce))
+                tx.nonce = params[i].value;
+            else static if (is(ARGS[i] == Data))
+                tx.data = params[i].value;
+            else static if (is(ARGS[i] == ChainId))
+                tx.chainid = params[i].value;
+            else static if (is(ARGS[i] == GasPrice))
+                tx.gasPrice = params[i].value;
             else static if (is(ARGS[i] == AccessList))
                 tx.accessList = params[i].value;
             else

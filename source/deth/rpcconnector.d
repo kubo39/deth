@@ -98,9 +98,17 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     BigInt estimateGas(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
     {
         return tx.match!(
+            (LegacyTransaction legacyTx) => estimateGas(legacyTx, block),
+            (EIP2930Transaction eip2930Tx) => estimateGas(eip2930Tx, block),
             (EIP1559Transaction eip1559Tx) => estimateGas(eip1559Tx, block),
-            (LegacyTransaction legacyTx) => estimateGas(legacyTx, block)
         );
+    }
+
+    ///
+    BigInt estimateGas(BlockParameter)(EIP2930Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
+    {
+        mixin BlockNumberToJSON!block;
+        return super.eth_estimateGas(tx.toJSON, _block).BigInt;
     }
 
     ///
@@ -195,6 +203,15 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     }
 
     ///
+    Hash sendRawTransaction(const EIP2930Transaction tx) @safe
+    {
+        auto rawTx = wallet.signTransaction(tx);
+        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
+        tracef("sent tx %s", hash.convTo!string.ox);
+        return hash;
+    }
+
+    ///
     Hash sendRawTransaction(const EIP1559Transaction tx) @safe
     {
         auto rawTx = wallet.signTransaction(tx);
@@ -219,9 +236,34 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
     Hash sendTransaction(Transaction tx) @safe
     {
         return tx.match!(
+            (const LegacyTransaction legacyTx) => sendTransaction(legacyTx),
+            (const EIP2930Transaction eip2930Tx) => sendTransaction(eip2930Tx),
             (const EIP1559Transaction eip1559Tx) => sendTransaction(eip1559Tx),
-            (const LegacyTransaction legacyTx) => sendTransaction(legacyTx)
         );
+    }
+
+    ///
+    Hash sendTransaction(const EIP2930Transaction tx) @safe
+    {
+        JSONValue jtx = ["from": tx.from.get.convTo!string.ox];
+        if (!tx.to.isNull)
+            jtx["to"] = tx.to.get.convTo!string.ox;
+        if (!tx.gasPrice.isNull)
+            jtx["gasPrice"] = tx.gasPrice.to!string.ox;
+        if (!tx.gas.isNull)
+            jtx["gas"] = tx.gas.get.convTo!string.ox;
+        if (!tx.value.isNull)
+            jtx["value"] = tx.value.get.convTo!string.ox;
+        if (!tx.data.isNull)
+            jtx["data"] = tx.data.get.convTo!string.ox;
+        if (!tx.chainid.isNull)
+            jtx["chainid"] = tx.chainid.to!string;
+        if (!tx.accessList.isNull)
+            jtx["accessList"] = tx.accessList.to!string;
+        logf("Json string: %s", jtx.toString);
+        auto hash = eth_sendTransaction(jtx).convTo!Hash;
+        tracef("sent tx %s", hash.convTo!string.ox);
+        return hash;
     }
 
     ///
@@ -242,6 +284,8 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
             jtx["maxFeePerGas"] = tx.maxFeePerGas.to!string;
         if (!tx.maxPriorityFeePerGas.isNull)
             jtx["maxPriorityFeePerGas"] = tx.maxPriorityFeePerGas.to!string;
+        if (!tx.accessList.isNull)
+            jtx["accessList"] = tx.accessList.to!string;
         logf("Json string: %s", jtx.toString);
         auto hash = eth_sendTransaction(jtx).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
