@@ -10,8 +10,6 @@ import deth.util : Address, Hash, bytes, convTo, Transaction, ox;
 import deth.util.transaction;
 
 import secp256k1 : secp256k1;
-import rlp.encode : encode, encodeLength;
-import rlp.header;
 
 /// struct to store several private keys in a single wallet
 struct Wallet
@@ -87,64 +85,12 @@ struct Wallet
 
         auto c = addrs[signer];
 
-        bytes rlpTx = [tx.type];
-        Header header = { isList: true, payloadLen: 0 };
-        header.payloadLen =
-            tx.chainid.encodeLength() +
-            tx.nonce.encodeLength() +
-            tx.maxPriorityFeePerGas.encodeLength() +
-            tx.maxFeePerGas.encodeLength() +
-            tx.gas.encodeLength() +
-            tx.to.encodeLength() +
-            tx.value.encodeLength() +
-            tx.data.encodeLength() +
-            tx.accessList.encodeLength();
-        header.encodeHeader(rlpTx);
-        tx.chainid.encode(rlpTx);
-        tx.nonce.encode(rlpTx);
-        tx.maxPriorityFeePerGas.encode(rlpTx);
-        tx.maxFeePerGas.encode(rlpTx);
-        tx.gas.encode(rlpTx);
-        tx.to.encode(rlpTx);
-        tx.value.encode(rlpTx);
-        tx.data.encode(rlpTx);
-        tx.accessList.encode(rlpTx);
-
+        bytes rlpTx = tx.serializeToRLP();
         debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
 
         // the secp256k1 sign function calls keccak256() internally.
         auto signature = c.sign(rlpTx);
-
-        bytes signedTx = [tx.type];
-        Header signedTxHeader = { isList: true, payloadLen: 0 };
-        signedTxHeader.payloadLen =
-            tx.chainid.encodeLength() +
-            tx.nonce.encodeLength() +
-            tx.maxPriorityFeePerGas.encodeLength() +
-            tx.maxFeePerGas.encodeLength() +
-            tx.gas.encodeLength() +
-            tx.to.encodeLength() +
-            tx.value.encodeLength() +
-            tx.data.encodeLength() +
-            tx.accessList.encodeLength() +
-            (cast(bool) signature.recid).encodeLength() +
-            signature.r.encodeLength() +
-            signature.s.encodeLength();
-        signedTxHeader.encodeHeader(signedTx);
-        tx.chainid.encode(signedTx);
-        tx.nonce.encode(signedTx);
-        tx.maxPriorityFeePerGas.encode(signedTx);
-        tx.maxFeePerGas.encode(signedTx);
-        tx.gas.encode(signedTx);
-        tx.to.encode(signedTx);
-        tx.value.encode(signedTx);
-        tx.data.encode(signedTx);
-        tx.accessList.encode(signedTx);
-        (cast(bool) signature.recid).encode(signedTx);
-        signature.r.encode(signedTx);
-        signature.s.encode(signedTx);
-
-        return signedTx;
+        return tx.serializeToSignedRLP(signature);
     }
 
     ///
@@ -163,63 +109,11 @@ struct Wallet
         enforce(signer in addrs, "Address %s not found", signer.convTo!string.ox);
 
         auto c = addrs[signer];
-
-        bytes rlpTx;
-        Header header = { isList: true, payloadLen: 0 };
-        header.payloadLen =
-            tx.nonce.encodeLength() +
-            tx.gasPrice.encodeLength()+
-            tx.gas.encodeLength() +
-            tx.to.encodeLength() +
-            tx.value.encodeLength() +
-            tx.data.encodeLength();
-        if (!tx.chainid.isNull)
-        {
-            header.payloadLen += tx.chainid.encodeLength();
-            header.payloadLen += 2;
-        }
-        header.encodeHeader(rlpTx);
-        tx.nonce.encode(rlpTx);
-        tx.gasPrice.encode(rlpTx);
-        tx.gas.encode(rlpTx);
-        tx.to.encode(rlpTx);
-        tx.value.encode(rlpTx);
-        tx.data.encode(rlpTx);
-        if (!tx.chainid.isNull)
-        {
-            tx.chainid.encode(rlpTx);
-            rlpTx ~= [0x80, 0x80];
-        }
-
+        bytes rlpTx = tx.serializeToRLP();
         debug logf("Rlp encoded tx %s", rlpTx.toHexString.ox);
 
         // the secp256k1 sign function calls keccak256() internally.
         auto signature = c.sign(rlpTx);
-        bytes rawTx;
-        Header rawTxHeader = { isList: true, payloadLen: 0 };
-        ulong v = tx.chainid.isNull
-            ? 27 + signature.recid
-            : signature.recid + tx.chainid.get * 2 + 35 /* eip 155 signing */ ;
-        rawTxHeader.payloadLen =
-            tx.nonce.encodeLength() +
-            tx.gasPrice.encodeLength()+
-            tx.gas.encodeLength() +
-            tx.to.encodeLength() +
-            tx.value.encodeLength() +
-            tx.data.encodeLength() +
-            v.encodeLength() +
-            signature.r.encodeLength() +
-            signature.s.encodeLength();
-        rawTxHeader.encodeHeader(rawTx);
-        tx.nonce.encode(rawTx);
-        tx.gasPrice.encode(rawTx);
-        tx.gas.encode(rawTx);
-        tx.to.encode(rawTx);
-        tx.value.encode(rawTx);
-        tx.data.encode(rawTx);
-        v.encode(rawTx);
-        signature.r.encode(rawTx);
-        signature.s.encode(rawTx);
-        return rawTx;
+        return tx.serializeToSignedRLP(signature);
     }
 }
