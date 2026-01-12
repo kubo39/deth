@@ -14,7 +14,9 @@ import std.typecons : Nullable;
 import deth.util.types;
 import deth.rpcconnector : RPCConnector;
 
-import rlp.encode;
+import rlp.encode : encode, encodeLength;
+import rlp.header;
+import secp256k1 : Signature;
 
 // https://eips.ethereum.org/EIPS/eip-2718
 enum TransactionType : ubyte
@@ -75,6 +77,86 @@ struct EIP1559Transaction
             result["nonce"] = nonce.get.to!string(16).ox;
         return result.JSONValue;
     }
+
+    bytes serializeToRLP() pure const @safe
+    {
+        bytes rlpTx = [type];
+        Header header = { isList: true, payloadLen: 0 };
+        header.payloadLen =
+            chainid.encodeLength() +
+            nonce.encodeLength() +
+            maxPriorityFeePerGas.encodeLength() +
+            maxFeePerGas.encodeLength() +
+            gas.encodeLength() +
+            to.encodeLength() +
+            value.encodeLength() +
+            data.encodeLength() +
+            accessList.encodeLength();
+        header.encodeHeader(rlpTx);
+        chainid.encode(rlpTx);
+        nonce.encode(rlpTx);
+        maxPriorityFeePerGas.encode(rlpTx);
+        maxFeePerGas.encode(rlpTx);
+        gas.encode(rlpTx);
+        to.encode(rlpTx);
+        value.encode(rlpTx);
+        data.encode(rlpTx);
+        accessList.encode(rlpTx);
+        
+        return rlpTx;
+    }
+
+    bytes serializeToSignedRLP(Signature signature) pure const @safe
+    {
+        bytes signedTx = [type];
+        Header signedTxHeader = { isList: true, payloadLen: 0 };
+        signedTxHeader.payloadLen =
+            chainid.encodeLength() +
+            nonce.encodeLength() +
+            maxPriorityFeePerGas.encodeLength() +
+            maxFeePerGas.encodeLength() +
+            gas.encodeLength() +
+            to.encodeLength() +
+            value.encodeLength() +
+            data.encodeLength() +
+            accessList.encodeLength() +
+            (cast(bool) signature.recid).encodeLength() +
+            signature.r.encodeLength() +
+            signature.s.encodeLength();
+        signedTxHeader.encodeHeader(signedTx);
+        chainid.encode(signedTx);
+        nonce.encode(signedTx);
+        maxPriorityFeePerGas.encode(signedTx);
+        maxFeePerGas.encode(signedTx);
+        gas.encode(signedTx);
+        to.encode(signedTx);
+        value.encode(signedTx);
+        data.encode(signedTx);
+        accessList.encode(signedTx);
+        (cast(bool) signature.recid).encode(signedTx);
+        signature.r.encode(signedTx);
+        signature.s.encode(signedTx);
+
+        return signedTx;
+    }
+}
+
+@("eip-1559 encoding test")
+unittest
+{
+   EIP1559Transaction tx = {
+       chainid: 1,
+       nonce: 0,
+       maxPriorityFeePerGas: "2000000000".BigInt,
+       maxFeePerGas: "3000000000".BigInt,
+       gas: "78009".BigInt,
+       to: "0x6b175474e89094c44da98b954eedeac495271d0f".convTo!Address,
+       value: "0".BigInt,
+       data: "0xa9059cbb0000000000000000000000005322b34c88ed0691971bf52a7047448f0f4efc840000000000000000000000000000000000000000000000001bc16d674ec80000".convTo!bytes,
+   };
+   auto rlpTx = tx.serializeToRLP();
+   auto expected = "0x02f86D0180847735940084b2d05e00830130b9946b175474e89094c44da98b954eedeac495271d0f80b844a9059cbb0000000000000000000000005322b34c88ed0691971bf52a7047448f0f4efc840000000000000000000000000000000000000000000000001bc16d674ec80000c0".convTo!bytes;
+   assert(rlpTx == expected);
 }
 
 struct LegacyTransaction
@@ -108,6 +190,69 @@ struct LegacyTransaction
         if (!nonce.isNull)
             result["nonce"] = nonce.get.to!string(16).ox;
         return result.JSONValue;
+    }
+
+    bytes serializeToRLP() pure const @safe
+    {
+        bytes rlpTx;
+        Header header = { isList: true, payloadLen: 0 };
+        header.payloadLen =
+            nonce.encodeLength() +
+            gasPrice.encodeLength()+
+            gas.encodeLength() +
+            to.encodeLength() +
+            value.encodeLength() +
+            data.encodeLength();
+        if (!chainid.isNull)
+        {
+            header.payloadLen += chainid.encodeLength();
+            header.payloadLen += 2;
+        }
+        header.encodeHeader(rlpTx);
+        nonce.encode(rlpTx);
+        gasPrice.encode(rlpTx);
+        gas.encode(rlpTx);
+        to.encode(rlpTx);
+        value.encode(rlpTx);
+        data.encode(rlpTx);
+        if (!chainid.isNull)
+        {
+            chainid.encode(rlpTx);
+            rlpTx ~= [0x80, 0x80];
+        }
+
+        return rlpTx;
+    }
+
+    bytes serializeToSignedRLP(Signature signature) pure const @safe
+    {
+        bytes signedTx;
+        Header signedTxHeader = { isList: true, payloadLen: 0 };
+        ulong v = chainid.isNull
+            ? 27 + signature.recid
+            : signature.recid + chainid.get * 2 + 35 /* eip 155 signing */ ;
+        signedTxHeader.payloadLen =
+            nonce.encodeLength() +
+            gasPrice.encodeLength()+
+            gas.encodeLength() +
+            to.encodeLength() +
+            value.encodeLength() +
+            data.encodeLength() +
+            v.encodeLength() +
+            signature.r.encodeLength() +
+            signature.s.encodeLength();
+        signedTxHeader.encodeHeader(signedTx);
+        nonce.encode(signedTx);
+        gasPrice.encode(signedTx);
+        gas.encode(signedTx);
+        to.encode(signedTx);
+        value.encode(signedTx);
+        data.encode(signedTx);
+        v.encode(signedTx);
+        signature.r.encode(signedTx);
+        signature.s.encode(signedTx);
+
+        return signedTx;
     }
 }
 
