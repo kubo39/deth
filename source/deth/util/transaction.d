@@ -49,7 +49,7 @@ struct EIP1559Transaction
     Nullable!Address to;
     Nullable!BigInt value;
     Nullable!bytes data = [];
-    Nullable!(bytes[]) accessList;
+    Nullable!AccessList accessList;
 
     TransactionType type() pure const nothrow @safe
     {
