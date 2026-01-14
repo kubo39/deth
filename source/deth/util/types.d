@@ -405,3 +405,15 @@ struct ProofResponse
     Hash storageHash;
     StorageProof[] storageProof;
 }
+
+struct AccessList
+{
+    AccessListItem[] items;
+    alias items this;
+}
+
+struct AccessListItem
+{
+    Address addess;
+    BigInt[] storageKeys;
+}
