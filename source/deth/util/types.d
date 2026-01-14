@@ -406,11 +406,7 @@ struct ProofResponse
     StorageProof[] storageProof;
 }
 
-struct AccessList
-{
-    AccessListItem[] items;
-    alias items this;
-}
+alias AccessList = AccessListItem[];
 
 struct AccessListItem
 {
