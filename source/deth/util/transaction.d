@@ -14,7 +14,7 @@ import std.typecons : Nullable, nullable;
 import deth.util.types;
 import deth.rpcconnector : RPCConnector;
 
-import rlp.encode : encode, encodeLength;
+import rlp.encode : encode, encodeLength, lengthOfPayloadLength;
 import rlp.header;
 import secp256k1 : Signature;
 
@@ -83,8 +83,7 @@ struct EIP2930Transaction
     bytes serializeToRLP() pure const @safe
     {
         bytes rlpTx = [type];
-        Header header = { isList: true, payloadLen: 0 };
-        header.payloadLen =
+        const payloadLen =
             chainid.encodeLength() +
             nonce.encodeLength() +
             gasPrice.encodeLength() +
@@ -93,6 +92,8 @@ struct EIP2930Transaction
             value.encodeLength() +
             data.encodeLength() +
             accessList.encodeLength();
+        Header header = { isList: true, payloadLen: payloadLen };
+        rlpTx.reserve(payloadLen + lengthOfPayloadLength(payloadLen));
         header.encodeHeader(rlpTx);
         chainid.encode(rlpTx);
         nonce.encode(rlpTx);
@@ -109,8 +110,7 @@ struct EIP2930Transaction
     bytes serializeToSignedRLP(Signature signature) pure const @safe
     {
         bytes signedTx = [type];
-        Header signedTxHeader = { isList: true, payloadLen: 0 };
-        signedTxHeader.payloadLen =
+        const payloadLen =
             chainid.encodeLength() +
             nonce.encodeLength() +
             gasPrice.encodeLength() +
@@ -122,6 +122,8 @@ struct EIP2930Transaction
             (cast(bool) signature.recid).encodeLength() +
             signature.r.encodeLength() +
             signature.s.encodeLength();
+        Header signedTxHeader = { isList: true, payloadLen: payloadLen };
+        signedTx.reserve(payloadLen + lengthOfPayloadLength(payloadLen));
         signedTxHeader.encodeHeader(signedTx);
         chainid.encode(signedTx);
         nonce.encode(signedTx);
@@ -278,8 +280,7 @@ struct EIP1559Transaction
     bytes serializeToRLP() pure const @safe
     {
         bytes rlpTx = [type];
-        Header header = { isList: true, payloadLen: 0 };
-        header.payloadLen =
+        const payloadLen =
             chainid.encodeLength() +
             nonce.encodeLength() +
             maxPriorityFeePerGas.encodeLength() +
@@ -289,6 +290,8 @@ struct EIP1559Transaction
             value.encodeLength() +
             data.encodeLength() +
             accessList.encodeLength();
+        Header header = { isList: true, payloadLen: payloadLen };
+        rlpTx.reserve(payloadLen + lengthOfPayloadLength(payloadLen));
         header.encodeHeader(rlpTx);
         chainid.encode(rlpTx);
         nonce.encode(rlpTx);
@@ -306,8 +309,7 @@ struct EIP1559Transaction
     bytes serializeToSignedRLP(Signature signature) pure const @safe
     {
         bytes signedTx = [type];
-        Header signedTxHeader = { isList: true, payloadLen: 0 };
-        signedTxHeader.payloadLen =
+        const payloadLen =
             chainid.encodeLength() +
             nonce.encodeLength() +
             maxPriorityFeePerGas.encodeLength() +
@@ -320,6 +322,8 @@ struct EIP1559Transaction
             (cast(bool) signature.recid).encodeLength() +
             signature.r.encodeLength() +
             signature.s.encodeLength();
+        Header signedTxHeader = { isList: true, payloadLen: payloadLen };
+        signedTx.reserve(payloadLen + lengthOfPayloadLength(payloadLen));
         signedTxHeader.encodeHeader(signedTx);
         chainid.encode(signedTx);
         nonce.encode(signedTx);
@@ -397,8 +401,7 @@ struct LegacyTransaction
     bytes serializeToRLP() pure const @safe
     {
         bytes rlpTx;
-        Header header = { isList: true, payloadLen: 0 };
-        header.payloadLen =
+        auto payloadLen =
             nonce.encodeLength() +
             gasPrice.encodeLength()+
             gas.encodeLength() +
@@ -407,9 +410,11 @@ struct LegacyTransaction
             data.encodeLength();
         if (!chainid.isNull)
         {
-            header.payloadLen += chainid.encodeLength();
-            header.payloadLen += 2;
+            payloadLen += chainid.encodeLength();
+            payloadLen += 2;
         }
+        Header header = { isList: true, payloadLen: payloadLen };
+        rlpTx.reserve(payloadLen + lengthOfPayloadLength(payloadLen));
         header.encodeHeader(rlpTx);
         nonce.encode(rlpTx);
         gasPrice.encode(rlpTx);
@@ -429,11 +434,10 @@ struct LegacyTransaction
     bytes serializeToSignedRLP(Signature signature) pure const @safe
     {
         bytes signedTx;
-        Header signedTxHeader = { isList: true, payloadLen: 0 };
         ulong v = chainid.isNull
             ? 27 + signature.recid
             : signature.recid + chainid.get * 2 + 35 /* eip 155 signing */ ;
-        signedTxHeader.payloadLen =
+        const payloadLen =
             nonce.encodeLength() +
             gasPrice.encodeLength()+
             gas.encodeLength() +
@@ -443,6 +447,8 @@ struct LegacyTransaction
             v.encodeLength() +
             signature.r.encodeLength() +
             signature.s.encodeLength();
+        Header signedTxHeader = { isList: true, payloadLen: payloadLen };
+        signedTx.reserve(payloadLen + lengthOfPayloadLength(payloadLen));
         signedTxHeader.encodeHeader(signedTx);
         nonce.encode(signedTx);
         gasPrice.encode(signedTx);
