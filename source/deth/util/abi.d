@@ -8,12 +8,12 @@ import std.range : ElementType, iota;
 import std.string : join;
 import std.traits : isInstanceOf, isIntegral, isBoolean, isStaticArray,
     isDynamicArray, FieldNameTuple, isAggregateType, Unconst;
-import std.typecons : Tuple;
+import std.typecons : Tuple, tuple;
 
 import deth.util.types;
 
 /// SLOT SIZE 32 bytes
-enum SS = 32;
+enum SLOT_SIZE = 32;
 
 /// function for abi encoding
 /// Params:
@@ -23,7 +23,7 @@ bytes encode(ARGS...)(const ARGS args_) pure @safe
 {
     EncodingResult res;
     auto args = args_.tuplelize;
-    ulong offset = args.length * SS;
+    ulong offset = args.length * SLOT_SIZE;
     foreach (arg; args)
     {
         auto t = arg.encodeUnit;
@@ -33,10 +33,8 @@ bytes encode(ARGS...)(const ARGS args_) pure @safe
         }
         res ~= t;
         offset += t.data.length;
-
     }
-    auto encoded = res.value ~ res.data;
-    return encoded;
+    return res.value ~ res.data;
 }
 
 private struct EncodingResult
@@ -58,17 +56,18 @@ private struct EncodingResult
 EncodingResult encodeUnit(T)(const T v) pure @safe
 {
     EncodingResult result;
-    static if(is(T == bool)){
-        result.value = new ubyte[32];
+    static if(is(T == bool))
+    {
+        result.value = new ubyte[SLOT_SIZE];
         result.value[$-1] = cast(bool) v;
     }
     else static if (isBoolean!T || isIntegral!T)
     {
-        result.value = v.BigInt.convTo!bytes.padLeft(0, SS);
+        result.value = v.BigInt.convTo!bytes.padLeft(0, SLOT_SIZE);
     }
     else static if (isStaticArray!T && is(ElementType!T == Unconst!ubyte))
     {
-        result.value = v.dup.padLeft(0, SS);
+        result.value = v.dup.padLeft(0, SLOT_SIZE);
     }
     else static if (isStaticArray!T)
     {
@@ -77,9 +76,10 @@ EncodingResult encodeUnit(T)(const T v) pure @safe
     }
     else static if (is(T == BigInt))
     {
-        result.value = v.convTo!bytes.padLeft(0, SS);
+        result.value = v.convTo!bytes.padLeft(0, SLOT_SIZE);
     }
-    else static if(isInstanceOf!(Tuple, T)){
+    else static if(isInstanceOf!(Tuple, T))
+    {
         foreach (t; v)
         {
             result ~= t.encodeUnit;
@@ -97,7 +97,7 @@ EncodingResult encodeUnit(T)(const T v) pure @safe
         alias E = ElementType!T;
         result.data ~= v.length.encodeUnit.value;
         EncodingResult arr;
-        auto offset = v.length * SS;
+        auto offset = v.length * SLOT_SIZE;
         foreach (e; v)
         {
             auto t = e.encodeUnit;
@@ -111,13 +111,12 @@ EncodingResult encodeUnit(T)(const T v) pure @safe
             offset += t.data.length;
         }
         auto padLen = arr.value.length;
-        if (arr.value.length % SS)
-            padLen += (SS - arr.value.length % SS);
+        if (arr.value.length % SLOT_SIZE)
+            padLen += (SLOT_SIZE - arr.value.length % SLOT_SIZE);
         result.data ~= arr.value.padRight(0, padLen).array ~ arr.data;
     }
     else static if (is(Unconst!T == char) || is(Unconst!T == ubyte))
     {
-
         result.value = [v];
     }
     else
@@ -136,14 +135,11 @@ private auto tuplelize(ARGS...)(const ARGS argv) pure nothrow @safe
         }
         return res.join("~ ");
     }
-
     mixin(`return ` ~ code ~ `;`);
 }
 
 private auto tuplelizeT(T)(const T v) pure nothrow @safe
 {
-    import std : tuple;
-
     static if (is(T == BigInt))
     {
         return tuple(v);
@@ -157,8 +153,10 @@ private auto tuplelizeT(T)(const T v) pure nothrow @safe
         mixin(q{
                 return tuple(} ~ v.length.iota.map!q{text(`v[`, a, `]`)}.join(`, `) ~ `);`);
     }
-    else static if (isInstanceOf!(Tuple, T)){
-        auto code(){
+    else static if (isInstanceOf!(Tuple, T))
+    {
+        auto code()
+        {
             string[] res;
             foreach (i; 0..T.length)
             {
@@ -191,7 +189,7 @@ version (unittest)
 
     private void runTest(ARGS...)(const string expected, const ARGS argv)
     {
-        import std : toHexString;
+        import std.digest : toHexString;
 
         auto encoded = encode(argv).toHexString;
         assert(expected == encoded, encoded);
@@ -274,13 +272,14 @@ unittest
     data[19] = 0xab;
     runTest("00000000000000000000000000000000000000000000000000000000000000AB", data);
 }
+
 /// 
 /// Params:
 ///   T    = type of decoding
 ///   data = bytes which presenting encoded data of type T
 /// Returns: decoded result
 T decode(T)(ubyte[] data, size_t offsetShift = 0) pure @safe
-in (data.length % 32 == 0)
+in (data.length % SLOT_SIZE == 0)
 {
     static if (is(T == void))
         return;
@@ -289,17 +288,17 @@ in (data.length % 32 == 0)
         T result;
         static if (is(T == BigInt))
         {
-            result = data[0 .. SS].toHexString.ox.BigInt;
+            result = data[0 .. SLOT_SIZE].toHexString.ox.BigInt;
         }
         else static if (isStaticArray!T && is(ElementType!T == ubyte))
         {
-            result[] = data[SS - result.length .. SS];
+            result[] = data[SLOT_SIZE - result.length .. SLOT_SIZE];
         }
         else static if (isDynamicArray!T)
         {
-            long offset = data[0 .. SS].decode!BigInt.toLong - offsetShift;
+            long offset = data[0 .. SLOT_SIZE].decode!BigInt.toLong - offsetShift;
             auto arrayData = data[offset .. $];
-            long len = arrayData[0 .. SS].decode!BigInt.toLong;
+            long len = arrayData[0 .. SLOT_SIZE].decode!BigInt.toLong;
             foreach (i; 0 .. len)
             {
                 alias Element = ElementType!T;
@@ -307,26 +306,29 @@ in (data.length % 32 == 0)
                 enum SC = 1;
                 static if (is(Element == dchar) || is(Element == char) || is(Element == ubyte))
                 {
-                    result ~= arrayData[SS + i .. SS + i + 1];
+                    result ~= arrayData[SLOT_SIZE + i .. SLOT_SIZE + i + 1];
                 }   
                 else
                 {
-                    result ~= arrayData[SS + i * SS * SC .. $].decode!Element(i * SS * SC);
+                    result ~= arrayData[SLOT_SIZE + i * SLOT_SIZE * SC .. $].decode!Element(i * SLOT_SIZE * SC);
                 }
             }
         }
-        else static if(is(T == bool)){
+        else static if(is(T == bool))
+        {
             result= cast(bool)data[$-1];
         }
-        else static if(isInstanceOf!(Tuple, T)){
-            auto code(){
+        else static if(isInstanceOf!(Tuple, T))
+        {
+            auto code()
+            {
                 string[] res;
                 foreach(i; 0..T.length){
-                    res ~= `data[SS*i..SS+SS*i].decode!(typeof(result[i]))`.replace(`i`, i.to!string);
+                    res ~= `data[SLOT_SIZE*i..SLOT_SIZE+SLOT_SIZE*i].decode!(typeof(result[i]))`
+                        .replace(`i`, i.to!string);
                 }
                 return res.join(", ");
             }
-            import std: tuple;
             mixin(`result = tuple(`~code~`);`);
         }
         else
@@ -347,7 +349,6 @@ version (unittest)
 @("solidity ABI decode")
 unittest
 {
-    import std: tuple;
     ubyte[4] s = [1, 2, 3, 4];
     runTestDecode(10.BigInt);
     runTestDecode([2.BigInt]);
