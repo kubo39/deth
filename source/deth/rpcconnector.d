@@ -60,6 +60,7 @@ private interface IEthRPC
     JSONValue eth_getTransactionByBlockNumberAndIndex(JSONValue blockNumber, string index) @safe;
     JSONValue eth_getTransactionReceipt(string data) @safe;
     JSONValue eth_getProof(string address, string[] storageKeys, JSONValue blockNumber) @safe;
+    JSONValue eth_getLogs(JSONValue filterOptions) @safe;
 }
 
 private mixin template BlockNumberToJSON(alias block)
@@ -330,6 +331,37 @@ class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
         return proofResponse;
     }
 
+    /// Wrapper for eth_getLogs.
+    Nullable!LogsResponse getLogs(BlockParameter)(LogFilter!BlockParameter filter) @trusted
+    {
+        JSONValue jtx;
+        if (!filter.from.isNull)
+        {
+            auto block = filter.from.get;
+            mixin BlockNumberToJSON!block;
+            jtx["from"] = _block;
+        }
+        if (!filter.to.isNull)
+        {
+            auto block = filter.to.get;
+            mixin BlockNumberToJSON!block;
+            jtx["to"] = _block;
+        }
+        if (!filter.address.isNull)
+        {
+            jtx["address"] = filter.address.get.convTo!string.ox;
+        }
+        if (!filter.topics.isNull)
+            jtx["topics"] = filter.topics.get;
+        JSONValue rawResponse = eth_getLogs(jtx);
+        Nullable!LogsResponse logsResponse;
+        if (rawResponse.isNull)
+        {
+            logsResponse = Nullable!LogsResponse(rawResponse.convTo!LogsResponse);
+        }
+        return logsResponse;
+    }
+
     /// Returns: array with addresses which PK is stored in wallet
     Address[] accounts() const @safe
     {
@@ -498,6 +530,7 @@ unittest
     assert(proof.get.address == address);
 }
 
+// https://ethereum.org/developers/docs/apis/json-rpc/#eth_getlogs
 @("eth_chainId")
 unittest
 {

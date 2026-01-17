@@ -259,6 +259,21 @@ To convTo(To, _From)(const _From f) @safe pure
             }();
             return proof;
         }
+        static if (is(To == LogsResponse))
+        {
+            LogsResponse logs;
+            () @trusted {
+                logs = f.array.map!(log => Log(
+                        log[`removed`].boolean,
+                        log[`address`].str[2 .. $].convTo!Address,
+                        log[`data`].str[2 .. $].hexToBytes,
+                        log[`topics`].array
+                            .map!(topic => topic.str[2 .. $].convTo!Hash)
+                            .array
+                    )).array;
+            }();
+            return logs;
+        }
     }
 }
 
@@ -345,6 +360,7 @@ struct BlockResponse
     Hash[] uncles;
 }
 
+// https://ethereum.org/developers/docs/apis/json-rpc/#eth_gettransactionreceipt
 struct TransactionReceipt
 {
     Hash transactionHash; // DATA, 32 Bytes - hash of the transaction.
@@ -385,6 +401,21 @@ struct Log
     Address address; //  DATA, 20 Bytes - address from which this log originated.
     bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
     Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)
+}
+
+// https://ethereum.org/developers/docs/apis/json-rpc/#eth_getlogs
+struct LogFilter(BlockParameter)
+{
+    Nullable!BlockParameter from;
+    Nullable!BlockParameter to;
+    Nullable!Address address;
+    Nullable!(Hash[]) topics;
+}
+
+struct LogsResponse
+{
+    Nullable!(Log[]) logs;
+    alias logs this;
 }
 
 struct StorageProof
