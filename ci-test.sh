@@ -20,7 +20,7 @@ trap cleanup EXIT INT TERM
 sleep 2
 
 # Run tests
-dub test -q
+dub test -q -- --threads=1
 dub run deth:devtest -q
 dub run deth:transfer -q
 dub run deth:deploybytecode -q
