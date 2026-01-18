@@ -23,7 +23,9 @@ enum BlockNumber
 {
     EARLIEST = `earliest`,
     LATEST = `latest`,
-    PENDING = `pending`
+    PENDING = `pending`,
+    SAFE = `safe`,
+    FINALIZED = `finalized`,
 }
 
 private interface IEthRPC

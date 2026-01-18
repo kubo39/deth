@@ -213,6 +213,7 @@ To convTo(To, _From)(const _From f) @safe pure
                 }
 
                 info.from = f[`from`].str.convTo!Address;
+                info.hash = f[`hash`].str.convTo!Hash;
                 info.input = f[`input`].str.convTo!bytes;
 
                 info.gas = f[`gas`].str.BigInt;
@@ -337,6 +338,7 @@ unittest
     assert(t.ox == "0xaaaa");
 }
 
+// https://ethereum.org/developers/docs/apis/json-rpc/#eth_getblockbyhash
 struct BlockResponse
 {
     Nullable!ulong number;
@@ -377,6 +379,7 @@ struct TransactionReceipt
     ulong type; // QUANTITY - integer of the transaction type, 0x0 for legacy transactions, 0x1 for access list types, 0x2 for dynamic fees.
 }
 
+// https://ethereum.org/developers/docs/apis/json-rpc/#eth_gettransactionbyhash
 struct TransactionInfo
 {
     Nullable!Hash blockHash;
@@ -384,6 +387,7 @@ struct TransactionInfo
     Address from;
     BigInt gas;
     BigInt gasPrice;
+    Hash hash;
     bytes input;
     ulong nonce;
     Nullable!Address to;
