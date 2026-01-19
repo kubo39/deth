@@ -19,7 +19,7 @@
 		"stdx-allocator": "2.77.5",
 		"structjson": "2.100.1",
 		"taggedalgebraic": "1.0.1",
-		"tynukrpc": "1.2.0",
+		"tynukrpc": {"version":"204c5c8c4c37ae4411ae9e4346632977599df0df","repository":"git+https://github.com/kubo39/d-rpc-forked"},
 		"unit-threaded": "2.2.3",
 		"vibe-container": "1.7.1",
 		"vibe-core": "2.13.3",

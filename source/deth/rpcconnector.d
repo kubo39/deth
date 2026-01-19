@@ -17,6 +17,7 @@ import deth.util.transaction;
 import deth.wallet : Wallet;
 
 import rpc.protocol.json;
+import rpc.core : IRpcClient, RpcInterfaceSettings, HttpRpcClient;
 import secp256k1 : secp256k1;
 
 enum BlockNumber
@@ -76,17 +77,27 @@ private mixin template BlockNumberToJSON(alias block)
 }
 
 /// Connector to Ethereum rpc endpoint
-class RPCConnector : HttpJsonRpcAutoClient!IEthRPC
+class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
 {
+    /// Alias for the RPC client type used by this connector
+    protected alias RpcClient = IRpcClient!(int, JsonRpcRequest!int, JsonRpcResponse!int);
+
     /// Private keys stored by connector
     Wallet wallet;
 
     /// coeficient used for estimated gas
     uint gasEstimatePercentage = 100;
 
+    /// Construct with a URL (creates HttpRpcClient internally)
     this(string url) @safe
     {
-        super(url);
+        super(new HttpRpcClient!(int, JsonRpcRequest!int, JsonRpcResponse!int)(url), new RpcInterfaceSettings());
+    }
+
+    /// Package constructor for injecting a custom RPC client (for testing)
+    package this(RpcClient client) @safe
+    {
+        super(client, new RpcInterfaceSettings());
     }
 
     /// Wrapper for eth_getBalance
@@ -538,4 +549,200 @@ unittest
 {
     auto conn = new RPCConnector("http://127.0.0.1:8545");
     assert(conn.chainId() == 31337 /* anvil's default chain id */);
+}
+
+// ============================================================================
+// Mock-based Unit Tests
+// ============================================================================
+
+version (unittest)
+{
+    import core.time : Duration;
+    import std.container : DList;
+    import vibe.data.json : Json, parseJson;
+
+    /// Mock RPC client for testing
+    private class MockRpcClient : IRpcClient!(int, JsonRpcRequest!int, JsonRpcResponse!int)
+    {
+        alias Response = JsonRpcResponse!int;
+
+        private DList!Response _responseQueue;
+        private string[] _calledMethods;
+        private size_t _queueSize = 0;
+
+        void enqueueResponse(string jsonResult) @safe
+        {
+            auto response = new Response();
+            response.result = parseJson(jsonResult);
+            _responseQueue.insertBack(response);
+            _queueSize++;
+        }
+
+        void enqueueError(int code, string message) @safe
+        {
+            auto response = new Response();
+            auto error = new JsonRpcError();
+            error.code = code;
+            error.message = message;
+            response.error = error;
+            _responseQueue.insertBack(response);
+            _queueSize++;
+        }
+
+        @property size_t requestCount() const @safe nothrow { return _calledMethods.length; }
+
+        void assertMethodCalled(string method) const @safe
+        {
+            import std.algorithm : canFind;
+            assert(_calledMethods.canFind(method), "Expected method '" ~ method ~ "' to be called");
+        }
+
+        // IRpcClient implementation
+        @property bool connected() @safe nothrow { return true; }
+        bool connect() @safe nothrow { return true; }
+        void tick() @safe {}
+
+        Response sendRequestAndWait(JsonRpcRequest!int request, Duration timeout = Duration.max()) @safe
+        {
+            _calledMethods ~= request.method;
+            assert(_queueSize > 0, "No response queued for method '" ~ request.method ~ "'");
+            auto response = _responseQueue.front;
+            _responseQueue.removeFront();
+            _queueSize--;
+            response.id = request.id;
+            return response;
+        }
+    }
+
+    private string jsonHex(T)(T value) @safe pure
+    {
+        static if (is(T == BigInt))
+            return "\"" ~ value.convTo!string.ox ~ "\"";
+        else
+            return "\"" ~ BigInt(value).convTo!string.ox ~ "\"";
+    }
+}
+
+@("mock: chainId")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(jsonHex(31337UL));
+
+    assert(conn.chainId() == 31337);
+    mock.assertMethodCalled("eth_chainId");
+}
+
+@("mock: getBalance")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(jsonHex(BigInt("100000000000000000000")));
+
+    Address addr;
+    auto balance = conn.getBalance(addr);
+
+    assert(balance == BigInt("100000000000000000000")); // 100 ETH in wei
+    mock.assertMethodCalled("eth_getBalance");
+}
+
+@("mock: gasPrice")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(jsonHex(BigInt(20_000_000_000)));
+
+    auto price = conn.gasPrice();
+
+    assert(price == BigInt(20_000_000_000)); // 20 gwei
+    mock.assertMethodCalled("eth_gasPrice");
+}
+
+@("mock: getTransactionCount")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(jsonHex(42UL));
+
+    Address addr;
+    auto count = conn.getTransactionCount(addr);
+
+    assert(count == 42);
+    mock.assertMethodCalled("eth_getTransactionCount");
+}
+
+@("mock: estimateGas")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(jsonHex(BigInt(21000)));
+
+    LegacyTransaction tx;
+    auto gas = conn.estimateGas(tx);
+
+    assert(gas == BigInt(21000));
+    mock.assertMethodCalled("eth_estimateGas");
+}
+
+@("mock: call")
+unittest
+{
+    import std.format : format;
+
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    // 32 bytes with value 42 at the end
+    mock.enqueueResponse(format!"\"0x%064x\""(42));
+
+    LegacyTransaction tx;
+    Transaction wrappedTx = tx;
+    auto result = conn.call(wrappedTx);
+
+    assert(result.length == 32);
+    assert(result[31] == 42);
+    mock.assertMethodCalled("eth_call");
+}
+
+@("mock: multiple RPC calls sequence")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(jsonHex(1UL));
+    mock.enqueueResponse(jsonHex(5UL));
+    mock.enqueueResponse(jsonHex(BigInt(30_000_000_000)));
+
+    assert(conn.chainId() == 1);
+
+    Address addr;
+    assert(conn.getTransactionCount(addr) == 5);
+    assert(conn.gasPrice() == BigInt(30_000_000_000));
+
+    assert(mock.requestCount == 3);
+}
+
+@("mock: RPC error handling")
+unittest
+{
+    import std.exception : assertThrown;
+    import rpc.core : RpcException;
+
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueError(-32000, "execution reverted");
+
+    assertThrown!RpcException(conn.chainId());
 }
