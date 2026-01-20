@@ -12,6 +12,7 @@ import std.json : JSONValue;
 import std.sumtype;
 import std.typecons : Nullable;
 
+import deth.signer;
 import deth.util;
 import deth.util.transaction;
 import deth.wallet : Wallet;
@@ -210,16 +211,18 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     /// Returns: Hash of transaction
     Hash sendRawTransaction(const Transaction tx) @safe
     {
-        auto rawTx = wallet.signTransaction(tx);
-        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
-        tracef("sent tx %s", hash.convTo!string.ox);
-        return hash;
+        return tx.match!(
+            (const EIP2930Transaction eip2930tx) => sendRawTransaction(eip2930tx),
+            (const EIP1559Transaction eip1559tx) => sendRawTransaction(eip1559tx),
+            (const LegacyTransaction legacyTx) => sendRawTransaction(legacyTx),
+        );
     }
 
     ///
     Hash sendRawTransaction(const EIP2930Transaction tx) @safe
     {
-        auto rawTx = wallet.signTransaction(tx);
+        auto signer = wallet.getSigner(tx.from.get);
+        auto rawTx = signer.signTransaction(tx);
         auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
         return hash;
@@ -228,7 +231,8 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     ///
     Hash sendRawTransaction(const EIP1559Transaction tx) @safe
     {
-        auto rawTx = wallet.signTransaction(tx);
+        auto signer = wallet.getSigner(tx.from.get);
+        auto rawTx = signer.signTransaction(tx);
         auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
         return hash;
@@ -237,7 +241,8 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     ///
     Hash sendRawTransaction(const LegacyTransaction tx) @safe
     {
-        auto rawTx = wallet.signTransaction(tx);
+        auto signer = wallet.getSigner(tx.from.get);
+        auto rawTx = signer.signTransaction(tx);
         auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
         return hash;
@@ -451,9 +456,10 @@ unittest
     const bob = accounts[1];
 
     // anvil's default private key.
-    conn.wallet.addPrivateKey(
+    auto signer = new Signer(
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
     );
+    conn.wallet.addSigner(signer);
 
     LegacyTransaction legacyTx = {
         to: bob,
@@ -478,9 +484,10 @@ unittest
     const bob = accounts[1];
 
     // anvil's default private key.
-    conn.wallet.addPrivateKey(
+    auto signer = new Signer(
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
     );
+    conn.wallet.addSigner(signer);
 
     LegacyTransaction legacyTx = {
         to: bob,
@@ -506,9 +513,10 @@ unittest
     const bob = accounts[1];
 
     // anvil's default private key.
-    conn.wallet.addPrivateKey(
+    auto signer = new Signer(
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
     );
+    conn.wallet.addSigner(signer);
 
     EIP1559Transaction eip1559tx = {
         from: alice,
