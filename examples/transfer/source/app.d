@@ -12,9 +12,10 @@ void main()
     const bob = accounts[1];
 
     // anvil's first default private key. (for alice)
-    conn.wallet.addPrivateKey(
+    auto signer = new Signer(
         "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
     );
+    conn.wallet.addSigner(signer);
 
     const chainid = conn.net_version.to!ulong;
     LegacyTransaction tx = {
