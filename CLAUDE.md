@@ -1,0 +1,170 @@
+# Deth Development Guide for AI Agents
+
+## Project Overview
+
+Deth is a D language Ethereum utility library and Web3 client implementation. Unlike execution layer clients (e.g., reth, geth), deth focuses on:
+
+- **RPC Client**: JSON-RPC interface to interact with Ethereum nodes
+- **Transaction Handling**: Building, signing, and sending transactions (Legacy, EIP-2930, EIP-1559)
+- **ABI Encoding/Decoding**: Solidity ABI specification compliance
+- **Contract Interaction**: Type-safe contract calls via compile-time code generation
+- **Cryptographic Signing**: EIP-191 message signing, transaction signing with secp256k1
+
+## Architecture Overview
+
+### Core Modules
+
+| Module | Purpose |
+|--------|---------|
+| `rpcconnector` | JSON-RPC client wrapping tynukrpc, provides typed Ethereum RPC methods |
+| `signer` | Transaction and message signing using secp256k1 |
+| `wallet` | Multi-signer management |
+| `contract` | Compile-time ABI parsing and contract interaction |
+| `util/transaction` | Transaction types (Legacy, EIP-2930, EIP-1559) and SumType wrappers |
+| `util/abi` | ABI encoding/decoding for Solidity types |
+| `util/types` | Primitive types (Address, Hash, bytes) and conversions |
+| `util/decimals` | Wei/Gwei/Ether unit conversions |
+
+### Design Principles
+
+1. **Type Safety**: Use D's compile-time features (templates, mixins) for type-safe APIs
+2. **SumType for Variants**: Transaction variants use `std.sumtype.SumType` for exhaustive matching
+3. **Nullable for Optional Fields**: Transaction fields use `std.typecons.Nullable`
+
+## Development Workflow
+
+### Build and Test Commands
+
+```bash
+# Build
+dub build
+
+# Run all tests (requires anvil running on localhost:8545)
+dub test
+
+# Run tests with specific verbosity
+dub test -q -- --threads=1
+
+# Run full CI tests (starts anvil automatically)
+sh ci-test.sh
+
+# Run specific example
+dub run deth:transfer
+dub run deth:devtest
+dub run deth:deploybytecode
+```
+
+### Testing Strategy
+
+`dub test` runs both unit tests and integration tests in the same run:
+
+1. **Unit Tests**: In-file `unittest` blocks for pure functions (encoding, type conversion, etc.)
+2. **Mock RPC Tests**: Use `MockRpcClient` for RPC method testing without network
+3. **Integration Tests**: Tests that connect to actual RPC server (anvil)
+
+**Important**: Some tests require anvil running on `localhost:8545`. Without anvil:
+- Mock tests and unit tests pass
+- Integration tests fail with "Failed to connect to 127.0.0.1:8545"
+
+For full test coverage, use `sh ci-test.sh` which starts anvil automatically.
+
+### Common Contribution Patterns
+
+| Pattern | Description |
+|---------|-------------|
+| Adding RPC method | Add to `IEthRPC` interface, implement wrapper in `RPCConnector` |
+| New transaction type | Add struct, update `Transaction` SumType, add helper functions |
+| ABI type support | Extend `encode`/`decode` templates in `util/abi.d` |
+| Signer feature | Implement in `Signer` class, consider trait abstraction |
+
+## Code Standards
+
+### Transaction Type Handling
+
+Always use `Transaction` (SumType) for public APIs:
+
+```d
+// Good: Accept Transaction SumType
+Hash sendRawTransaction(const Transaction tx) @safe;
+
+// Avoid: Concrete type overloads (removed in recent refactor)
+// Hash sendRawTransaction(const LegacyTransaction tx) @safe;
+```
+
+When calling methods that expect `Transaction`:
+
+```d
+LegacyTransaction tx = { to: recipient, value: amount };
+conn.sendTransaction(Transaction(tx));  // Wrap with Transaction()
+```
+
+### Attributes
+
+Prefer `@safe` and `pure` where possible:
+
+```d
+// Good
+bytes serializeToRLP(const Transaction tx) pure @safe;
+
+// Use @trusted only when wrapping unsafe operations
+bytes signTransaction(const Transaction tx) @trusted;
+```
+
+### Error Handling
+
+Currently uses exceptions via `std.exception.enforce`.
+
+```d
+enforce(!from.isNull, "from is required");
+```
+
+## CI Requirements
+
+Before submitting PR:
+
+1. `dub build` - Compiles without errors
+2. `dub test` - All unit tests pass
+3. `sh ci-test.sh` - Integration tests pass (requires anvil)
+
+## Project Structure
+
+```
+source/deth/
+├── package.d           # Public exports
+├── rpcconnector.d      # RPC client
+├── signer.d            # Transaction/message signing
+├── wallet.d            # Multi-signer wallet
+├── contract.d          # Contract ABI interaction
+└── util/
+    ├── package.d       # Util exports
+    ├── abi.d           # ABI encoding/decoding
+    ├── decimals.d      # Unit conversions
+    ├── transaction.d   # Transaction types
+    └── types.d         # Primitive types
+
+examples/
+├── devtest/            # Contract interaction example
+├── transfer/           # Simple transfer example
+└── deploybytecode/     # Contract deployment example
+```
+
+## Quick Reference
+
+```bash
+# Build
+dub build
+
+# Run all tests (requires anvil on localhost:8545)
+dub test
+
+# Run full CI (starts anvil, runs tests + examples)
+sh ci-test.sh
+
+# Start anvil manually for development
+anvil --balance 1000000
+
+# Run examples (requires anvil)
+dub run deth:transfer
+dub run deth:devtest
+dub run deth:deploybytecode
+```
