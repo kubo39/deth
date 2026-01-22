@@ -39,11 +39,11 @@ Deth is a D language Ethereum utility library and Web3 client implementation. Un
 # Build
 dub build
 
-# Run all tests (requires anvil running on localhost:8545)
+# Run unit tests (no anvil required)
 dub test
 
-# Run tests with specific verbosity
-dub test -q -- --threads=1
+# Run integration tests (requires anvil running on localhost:8545)
+dub test --d-version=IntegrationTest
 
 # Run full CI tests (starts anvil automatically)
 sh ci-test.sh
@@ -56,17 +56,17 @@ dub run deth:deploybytecode
 
 ### Testing Strategy
 
-`dub test` runs both unit tests and integration tests in the same run:
+Tests are separated into two categories:
 
-1. **Unit Tests**: In-file `unittest` blocks for pure functions (encoding, type conversion, etc.)
-2. **Mock RPC Tests**: Use `MockRpcClient` for RPC method testing without network
-3. **Integration Tests**: Tests that connect to actual RPC server (anvil)
+1. **Unit Tests** (`dub test`): No external dependencies required
+   - In-file `unittest` blocks for pure functions (encoding, type conversion, etc.)
+   - Mock RPC tests using `MockRpcClient` for RPC method testing without network
 
-**Important**: Some tests require anvil running on `localhost:8545`. Without anvil:
-- Mock tests and unit tests pass
-- Integration tests fail with "Failed to connect to 127.0.0.1:8545"
+2. **Integration Tests** (`dub test --d-version=IntegrationTest`): Requires anvil
+   - Tests that connect to actual RPC server (anvil on `localhost:8545`)
+   - Wrapped in `version (IntegrationTest)` blocks
 
-For full test coverage, use `sh ci-test.sh` which starts anvil automatically.
+For full test coverage, use `sh ci-test.sh` which runs both unit and integration tests.
 
 ### Common Contribution Patterns
 
@@ -123,8 +123,8 @@ enforce(!from.isNull, "from is required");
 Before submitting PR:
 
 1. `dub build` - Compiles without errors
-2. `dub test` - All unit tests pass
-3. `sh ci-test.sh` - Integration tests pass (requires anvil)
+2. `dub test` - All unit tests pass (no anvil required)
+3. `sh ci-test.sh` - Full test suite including integration tests
 
 ## Project Structure
 
@@ -154,8 +154,11 @@ examples/
 # Build
 dub build
 
-# Run all tests (requires anvil on localhost:8545)
+# Run unit tests (no anvil required)
 dub test
+
+# Run integration tests (requires anvil on localhost:8545)
+dub test --d-version=IntegrationTest
 
 # Run full CI (starts anvil, runs tests + examples)
 sh ci-test.sh

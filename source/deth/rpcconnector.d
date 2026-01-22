@@ -312,129 +312,134 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
 }
 
 
-@("get latest block with the hashes of the transactions")
-unittest
+// Integration tests - require anvil running on localhost:8545
+// Run with: dub test -- -d IntegrationTest
+version (IntegrationTest)
 {
-    auto conn = new RPCConnector("http://127.0.0.1:8545");
-    const block = conn.getBlock(false);
+    @("get latest block with the hashes of the transactions")
+    unittest
+    {
+        auto conn = new RPCConnector("http://127.0.0.1:8545");
+        const block = conn.getBlock(false);
 
-    assert(!block.isNull);
-    assert(block.get.size > 0);
-}
+        assert(!block.isNull);
+        assert(block.get.size > 0);
+    }
 
-@("sending legacy tx")
-unittest
-{
-    import deth.util.decimals;
+    @("sending legacy tx")
+    unittest
+    {
+        import deth.util.decimals;
 
-    auto conn = new RPCConnector("http://127.0.0.1:8545");
+        auto conn = new RPCConnector("http://127.0.0.1:8545");
 
-    const accounts = conn.remoteAccounts();
-    const alice = accounts[0];
-    const bob = accounts[1];
+        const accounts = conn.remoteAccounts();
+        const alice = accounts[0];
+        const bob = accounts[1];
 
-    // anvil's default private key.
-    auto signer = new Signer(
-        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-    );
-    conn.wallet.addSigner(signer);
+        // anvil's default private key.
+        auto signer = new Signer(
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        );
+        conn.wallet.addSigner(signer);
 
-    LegacyTransaction legacyTx = {
-        to: bob,
-        value: 16.wei,
-        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
-    };
-    auto txHash = SendableLegacyTransaction(legacyTx, conn).send();
-    conn.getTransaction(txHash);
-    conn.waitForTransactionReceipt(txHash);
-    assert(!conn.getTransactionReceipt(txHash).isNull);
-}
+        LegacyTransaction legacyTx = {
+            to: bob,
+            value: 16.wei,
+            data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
+        };
+        auto txHash = SendableLegacyTransaction(legacyTx, conn).send();
+        conn.getTransaction(txHash);
+        conn.waitForTransactionReceipt(txHash);
+        assert(!conn.getTransactionReceipt(txHash).isNull);
+    }
 
-@("sending eip-155 tx")
-unittest
-{
-    import deth.util.decimals : wei;
+    @("sending eip-155 tx")
+    unittest
+    {
+        import deth.util.decimals : wei;
 
-    auto conn = new RPCConnector("http://127.0.0.1:8545");
+        auto conn = new RPCConnector("http://127.0.0.1:8545");
 
-    const accounts = conn.remoteAccounts();
-    const alice = accounts[0];
-    const bob = accounts[1];
+        const accounts = conn.remoteAccounts();
+        const alice = accounts[0];
+        const bob = accounts[1];
 
-    // anvil's default private key.
-    auto signer = new Signer(
-        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-    );
-    conn.wallet.addSigner(signer);
+        // anvil's default private key.
+        auto signer = new Signer(
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        );
+        conn.wallet.addSigner(signer);
 
-    LegacyTransaction legacyTx = {
-        to: bob,
-        value: 16.wei,
-        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
-        chainid: conn.net_version.to!ulong,
-    };
-    const txHash = SendableLegacyTransaction(legacyTx, conn).send();
-    conn.getTransaction(txHash);
-    conn.waitForTransactionReceipt(txHash);
-    const receipt = conn.getTransactionReceipt(txHash);
-    assert(!receipt.isNull);
-    assert(receipt.get.from == alice);
-    assert(receipt.get.to == bob);
-}
+        LegacyTransaction legacyTx = {
+            to: bob,
+            value: 16.wei,
+            data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
+            chainid: conn.net_version.to!ulong,
+        };
+        const txHash = SendableLegacyTransaction(legacyTx, conn).send();
+        conn.getTransaction(txHash);
+        conn.waitForTransactionReceipt(txHash);
+        const receipt = conn.getTransactionReceipt(txHash);
+        assert(!receipt.isNull);
+        assert(receipt.get.from == alice);
+        assert(receipt.get.to == bob);
+    }
 
-@("sending eip-1559 transaction type 2")
-unittest
-{
-    auto conn = new RPCConnector("http://127.0.0.1:8545");
-    const accounts = conn.remoteAccounts();
-    const alice = accounts[0];
-    const bob = accounts[1];
+    @("sending eip-1559 transaction type 2")
+    unittest
+    {
+        auto conn = new RPCConnector("http://127.0.0.1:8545");
+        const accounts = conn.remoteAccounts();
+        const alice = accounts[0];
+        const bob = accounts[1];
 
-    // anvil's default private key.
-    auto signer = new Signer(
-        "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-    );
-    conn.wallet.addSigner(signer);
+        // anvil's default private key.
+        auto signer = new Signer(
+            "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        );
+        conn.wallet.addSigner(signer);
 
-    EIP1559Transaction eip1559tx = {
-        from: alice,
-        to: bob,
-        value: 16.wei,
-        data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
-        chainid: conn.net_version.to!ulong,
-        maxPriorityFeePerGas: 1.gwei,
-        maxFeePerGas: 1.gwei + 20.wei,
-    };
-    SendableTransaction sendableTx = SendableEIP1559Transaction(eip1559tx, conn);
-    const txHash = sendableTx.send();
-    conn.getTransaction(txHash);
-    conn.waitForTransactionReceipt(txHash);
-    const receipt = conn.getTransactionReceipt(txHash);
-    assert(!receipt.isNull);
-    assert(receipt.get.from == alice);
-    assert(receipt.get.to == bob);
-    assert(receipt.get.type == TransactionType.EIP1559);
-}
+        EIP1559Transaction eip1559tx = {
+            from: alice,
+            to: bob,
+            value: 16.wei,
+            data: cast(bytes) "\xdd\xdd\xdd\xdd Dlang - Fast code, fast.",
+            chainid: conn.net_version.to!ulong,
+            maxPriorityFeePerGas: 1.gwei,
+            maxFeePerGas: 1.gwei + 20.wei,
+        };
+        SendableTransaction sendableTx = SendableEIP1559Transaction(eip1559tx, conn);
+        const txHash = sendableTx.send();
+        conn.getTransaction(txHash);
+        conn.waitForTransactionReceipt(txHash);
+        const receipt = conn.getTransactionReceipt(txHash);
+        assert(!receipt.isNull);
+        assert(receipt.get.from == alice);
+        assert(receipt.get.to == bob);
+        assert(receipt.get.type == TransactionType.EIP1559);
+    }
 
-// https://eips.ethereum.org/EIPS/eip-1186
-@("eip-1186 merkle proofs")
-unittest
-{
-    auto conn = new RPCConnector("http://127.0.0.1:8545");
-    Address address = "0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842".convTo!Address;
-    auto storageKeys = [
-        "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
-    ];
-    auto proof = conn.getProof(address, storageKeys);
-    assert(proof.get.address == address);
-}
+    // https://eips.ethereum.org/EIPS/eip-1186
+    @("eip-1186 merkle proofs")
+    unittest
+    {
+        auto conn = new RPCConnector("http://127.0.0.1:8545");
+        Address address = "0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842".convTo!Address;
+        auto storageKeys = [
+            "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+        ];
+        auto proof = conn.getProof(address, storageKeys);
+        assert(proof.get.address == address);
+    }
 
-// https://ethereum.org/developers/docs/apis/json-rpc/#eth_getlogs
-@("eth_chainId")
-unittest
-{
-    auto conn = new RPCConnector("http://127.0.0.1:8545");
-    assert(conn.chainId() == 31337 /* anvil's default chain id */);
+    // https://ethereum.org/developers/docs/apis/json-rpc/#eth_getlogs
+    @("eth_chainId")
+    unittest
+    {
+        auto conn = new RPCConnector("http://127.0.0.1:8545");
+        assert(conn.chainId() == 31337 /* anvil's default chain id */);
+    }
 }
 
 // ============================================================================
