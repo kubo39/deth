@@ -110,31 +110,7 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     }
 
     /// Wrapper for eth_estimateGas
-    BigInt estimateGas(BlockParameter)(Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
-    {
-        return tx.match!(
-            (LegacyTransaction legacyTx) => estimateGas(legacyTx, block),
-            (EIP2930Transaction eip2930Tx) => estimateGas(eip2930Tx, block),
-            (EIP1559Transaction eip1559Tx) => estimateGas(eip1559Tx, block),
-        );
-    }
-
-    ///
-    BigInt estimateGas(BlockParameter)(EIP2930Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
-    {
-        mixin BlockNumberToJSON!block;
-        return super.eth_estimateGas(tx.toJSON, _block).BigInt;
-    }
-
-    ///
-    BigInt estimateGas(BlockParameter)(EIP1559Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
-    {
-        mixin BlockNumberToJSON!block;
-        return super.eth_estimateGas(tx.toJSON, _block).BigInt;
-    }
-
-    ///
-    BigInt estimateGas(BlockParameter)(LegacyTransaction tx, BlockParameter block = BlockNumber.LATEST) @safe
+    BigInt estimateGas(BlockParameter)(const Transaction tx, BlockParameter block = BlockNumber.LATEST) @safe
     {
         mixin BlockNumberToJSON!block;
         return super.eth_estimateGas(tx.toJSON, _block).BigInt;
@@ -204,44 +180,16 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     }
 
     /// Wrapper for eth_sendRawTransaction
-    /// signs transaction  and sends it
+    /// signs transaction and sends it
     /// signer is tx.from
     /// Params:
     ///   tx = Transaction wanted to be signed and sent
     /// Returns: Hash of transaction
     Hash sendRawTransaction(const Transaction tx) @safe
     {
-        return tx.match!(
-            (const EIP2930Transaction eip2930tx) => sendRawTransaction(eip2930tx),
-            (const EIP1559Transaction eip1559tx) => sendRawTransaction(eip1559tx),
-            (const LegacyTransaction legacyTx) => sendRawTransaction(legacyTx),
-        );
-    }
-
-    ///
-    Hash sendRawTransaction(const EIP2930Transaction tx) @safe
-    {
-        auto signer = wallet.getSigner(tx.from.get);
-        auto rawTx = signer.signTransaction(tx);
-        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
-        tracef("sent tx %s", hash.convTo!string.ox);
-        return hash;
-    }
-
-    ///
-    Hash sendRawTransaction(const EIP1559Transaction tx) @safe
-    {
-        auto signer = wallet.getSigner(tx.from.get);
-        auto rawTx = signer.signTransaction(tx);
-        auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
-        tracef("sent tx %s", hash.convTo!string.ox);
-        return hash;
-    }
-
-    ///
-    Hash sendRawTransaction(const LegacyTransaction tx) @safe
-    {
-        auto signer = wallet.getSigner(tx.from.get);
+        auto from = tx.getFrom();
+        enforce(!from.isNull, "from is required for sendRawTransaction");
+        auto signer = wallet.getSigner(from.get);
         auto rawTx = signer.signTransaction(tx);
         auto hash = eth_sendRawTransaction(rawTx.convTo!string.ox).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
@@ -252,79 +200,9 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     /// Params:
     ///   tx = Transaction to send
     /// Returns: Hash of sended tx
-    Hash sendTransaction(Transaction tx) @safe
+    Hash sendTransaction(const Transaction tx) @safe
     {
-        return tx.match!(
-            (const LegacyTransaction legacyTx) => sendTransaction(legacyTx),
-            (const EIP2930Transaction eip2930Tx) => sendTransaction(eip2930Tx),
-            (const EIP1559Transaction eip1559Tx) => sendTransaction(eip1559Tx),
-        );
-    }
-
-    ///
-    Hash sendTransaction(const EIP2930Transaction tx) @safe
-    {
-        JSONValue jtx = ["from": tx.from.get.convTo!string.ox];
-        if (!tx.to.isNull)
-            jtx["to"] = tx.to.get.convTo!string.ox;
-        if (!tx.gasPrice.isNull)
-            jtx["gasPrice"] = tx.gasPrice.to!string.ox;
-        if (!tx.gas.isNull)
-            jtx["gas"] = tx.gas.get.convTo!string.ox;
-        if (!tx.value.isNull)
-            jtx["value"] = tx.value.get.convTo!string.ox;
-        if (!tx.data.isNull)
-            jtx["data"] = tx.data.get.convTo!string.ox;
-        if (!tx.chainid.isNull)
-            jtx["chainid"] = tx.chainid.to!string;
-        if (!tx.accessList.isNull)
-            jtx["accessList"] = tx.accessList.to!string;
-        logf("Json string: %s", jtx.toString);
-        auto hash = eth_sendTransaction(jtx).convTo!Hash;
-        tracef("sent tx %s", hash.convTo!string.ox);
-        return hash;
-    }
-
-    ///
-    Hash sendTransaction(const EIP1559Transaction tx) @safe
-    {
-        JSONValue jtx = ["from": tx.from.get.convTo!string.ox];
-        if (!tx.to.isNull)
-            jtx["to"] = tx.to.get.convTo!string.ox;
-        if (!tx.gas.isNull)
-            jtx["gas"] = tx.gas.get.convTo!string.ox;
-        if (!tx.value.isNull)
-            jtx["value"] = tx.value.get.convTo!string.ox;
-        if (!tx.data.isNull)
-            jtx["data"] = tx.data.get.convTo!string.ox;
-        if (!tx.chainid.isNull)
-            jtx["chainid"] = tx.chainid.to!string;
-        if (!tx.maxFeePerGas.isNull)
-            jtx["maxFeePerGas"] = tx.maxFeePerGas.to!string;
-        if (!tx.maxPriorityFeePerGas.isNull)
-            jtx["maxPriorityFeePerGas"] = tx.maxPriorityFeePerGas.to!string;
-        if (!tx.accessList.isNull)
-            jtx["accessList"] = tx.accessList.to!string;
-        logf("Json string: %s", jtx.toString);
-        auto hash = eth_sendTransaction(jtx).convTo!Hash;
-        tracef("sent tx %s", hash.convTo!string.ox);
-        return hash;
-    }
-
-    ///
-    Hash sendTransaction(const LegacyTransaction tx) @safe
-    {
-        JSONValue jtx = ["from": tx.from.get.convTo!string.ox,];
-        if (!tx.value.isNull)
-            jtx["value"] = tx.value.get.convTo!string.ox;
-        if (!tx.gasPrice.isNull)
-            jtx["gasPrice"] = tx.gasPrice.get.convTo!string.ox;
-        if (!tx.gas.isNull)
-            jtx["gas"] = tx.gas.get.convTo!string.ox;
-        if (!tx.data.isNull)
-            jtx["data"] = tx.data.get.convTo!string.ox;
-        if (!tx.to.isNull)
-            jtx["to"] = tx.to.get.convTo!string.ox;
+        auto jtx = tx.toJSON();
         logf("Json string: %s", jtx.toString);
         auto hash = eth_sendTransaction(jtx).convTo!Hash;
         tracef("sent tx %s", hash.convTo!string.ox);
@@ -696,7 +574,7 @@ unittest
     mock.enqueueResponse(jsonHex(BigInt(21000)));
 
     LegacyTransaction tx;
-    auto gas = conn.estimateGas(tx);
+    auto gas = conn.estimateGas(Transaction(tx));
 
     assert(gas == BigInt(21000));
     mock.assertMethodCalled("eth_estimateGas");
