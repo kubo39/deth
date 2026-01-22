@@ -433,7 +433,7 @@ version (IntegrationTest)
         assert(proof.get.address == address);
     }
 
-    // https://ethereum.org/developers/docs/apis/json-rpc/#eth_getlogs
+    // https://eips.ethereum.org/EIPS/eip-695
     @("eth_chainId")
     unittest
     {
