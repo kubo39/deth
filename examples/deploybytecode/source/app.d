@@ -26,7 +26,7 @@ void main()
         chainid: chainid,
     };
 
-    const txHash = conn.sendTransaction(tx);
+    const txHash = conn.sendTransaction(Transaction(tx));
     const receipt = conn.waitForTransactionReceipt(txHash);
     const contractAddress = receipt.contractAddress;
     assert(!contractAddress.isNull);

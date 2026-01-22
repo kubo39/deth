@@ -32,12 +32,52 @@ alias Transaction = SumType!(
     EIP1559Transaction,
 );
 
-JSONValue toJSON(Transaction tx) pure @safe
+JSONValue toJSON(const Transaction tx) pure @safe
 {
     return tx.match!(
-        (LegacyTransaction legacyTx) => legacyTx.toJSON,
-        (EIP2930Transaction eip2930Tx) => eip2930Tx.toJSON,
-        (EIP1559Transaction eip1559Tx) => eip1559Tx.toJSON,
+        (const LegacyTransaction legacyTx) => legacyTx.toJSON,
+        (const EIP2930Transaction eip2930Tx) => eip2930Tx.toJSON,
+        (const EIP1559Transaction eip1559Tx) => eip1559Tx.toJSON,
+    );
+}
+
+/// Get 'from' field from Transaction (SumType)
+Nullable!Address getFrom(const Transaction tx) pure @safe nothrow
+{
+    return tx.match!(
+        (const LegacyTransaction t) => t.from,
+        (const EIP2930Transaction t) => t.from,
+        (const EIP1559Transaction t) => t.from,
+    );
+}
+
+/// Get 'to' field from Transaction (SumType)
+Nullable!Address getTo(const Transaction tx) pure @safe nothrow
+{
+    return tx.match!(
+        (const LegacyTransaction t) => t.to,
+        (const EIP2930Transaction t) => t.to,
+        (const EIP1559Transaction t) => t.to,
+    );
+}
+
+/// Serialize Transaction to RLP for signing
+bytes serializeToRLP(const Transaction tx) pure @safe
+{
+    return tx.match!(
+        (const LegacyTransaction t) => t.serializeToRLP(),
+        (const EIP2930Transaction t) => t.serializeToRLP(),
+        (const EIP1559Transaction t) => t.serializeToRLP(),
+    );
+}
+
+/// Serialize Transaction to signed RLP
+bytes serializeToSignedRLP(const Transaction tx, Signature signature) pure @safe
+{
+    return tx.match!(
+        (const LegacyTransaction t) => t.serializeToSignedRLP(signature),
+        (const EIP2930Transaction t) => t.serializeToSignedRLP(signature),
+        (const EIP1559Transaction t) => t.serializeToSignedRLP(signature),
     );
 }
 
@@ -537,7 +577,7 @@ struct SendableEIP1559Transaction
         }
         if (tx.gas.isNull)
         {
-            tx.gas = conn.estimateGas(tx) * conn.gasEstimatePercentage / 100;
+            tx.gas = conn.estimateGas(Transaction(tx)) * conn.gasEstimatePercentage / 100;
         }
         synchronized
         {
@@ -547,11 +587,11 @@ struct SendableEIP1559Transaction
             }
             if (conn.isUnlocked(tx.from.get))
             {
-                return conn.sendRawTransaction(tx);
+                return conn.sendRawTransaction(Transaction(tx));
             }
             else if (conn.isUnlockedRemote(tx.from.get))
             {
-                return conn.sendTransaction(tx);
+                return conn.sendTransaction(Transaction(tx));
             }
         }
         assert(0);
@@ -597,7 +637,7 @@ struct SendableEIP2930Transaction
         }
         if (tx.gas.isNull)
         {
-            tx.gas = conn.estimateGas(tx) * conn.gasEstimatePercentage / 100;
+            tx.gas = conn.estimateGas(Transaction(tx)) * conn.gasEstimatePercentage / 100;
         }
         synchronized
         {
@@ -607,11 +647,11 @@ struct SendableEIP2930Transaction
             }
             if (conn.isUnlocked(tx.from.get))
             {
-                return conn.sendRawTransaction(tx);
+                return conn.sendRawTransaction(Transaction(tx));
             }
             else if (conn.isUnlockedRemote(tx.from.get))
             {
-                return conn.sendTransaction(tx);
+                return conn.sendTransaction(Transaction(tx));
             }
         }
         assert(0);
@@ -653,7 +693,7 @@ struct SendableLegacyTransaction
         }
         if (tx.gas.isNull)
         {
-            tx.gas = conn.estimateGas(tx) * conn.gasEstimatePercentage / 100;
+            tx.gas = conn.estimateGas(Transaction(tx)) * conn.gasEstimatePercentage / 100;
         }
         if (tx.gasPrice.isNull)
         {
@@ -667,11 +707,11 @@ struct SendableLegacyTransaction
             }
             if (conn.isUnlocked(tx.from.get))
             {
-                return conn.sendRawTransaction(tx);
+                return conn.sendRawTransaction(Transaction(tx));
             }
             else if (conn.isUnlockedRemote(tx.from.get))
             {
-                return conn.sendTransaction(tx);
+                return conn.sendTransaction(Transaction(tx));
             }
         }
         assert(0);
