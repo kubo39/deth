@@ -118,6 +118,50 @@ Currently uses exceptions via `std.exception.enforce`.
 enforce(!from.isNull, "from is required");
 ```
 
+### Contract Interaction
+
+#### DefineContract Mixin (Type-safe, compile-time generated)
+
+Use `DefineContract` to generate type-safe contract bindings from ABI JSON:
+
+```d
+// Define contract type from ABI
+struct ERC20 {
+    mixin DefineContract!(import("erc20.json"), "ERC20");
+}
+
+// Connect to existing contract
+auto token = ERC20.at(conn, tokenAddress);
+
+// Call view functions (returns CallBuilder, use .call() to execute)
+BigInt balance = token.balanceOf(ownerAddress).call();
+
+// Send transactions (returns CallBuilder, use .send() to execute)
+Hash txHash = token.transfer(recipient, amount).send();
+
+// Deploy new contract
+ERC20.setBytecode(bytecode);
+auto newToken = ERC20.deploy(conn, constructorArg1, constructorArg2);
+```
+
+#### GenericContract (Dynamic, signature-based)
+
+Use `GenericContract` when ABI is not available at compile time:
+
+```d
+auto contract = new GenericContract!RPCConnector(conn, contractAddress);
+
+// Call view function by signature (directly returns result)
+auto balance = contract.call!("balanceOf(address)", BigInt)(ownerAddress);
+
+// Send transaction by signature (directly returns tx hash)
+auto txHash = contract.send!"transfer(address,uint256)"(recipient, amount);
+
+// Use prepare for method chaining (.from(), .value(), etc.)
+auto txHash = contract.prepare!"transfer(address,uint256)"(recipient, amount).from(sender).send();
+auto balance = contract.prepare!("balanceOf(address)", BigInt)(ownerAddress).from(addr).call();
+```
+
 ## CI Requirements
 
 Before submitting PR:

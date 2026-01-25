@@ -61,9 +61,23 @@ EncodingResult encodeUnit(T)(const T v) pure @safe
         result.value = new ubyte[SLOT_SIZE];
         result.value[$-1] = cast(bool) v;
     }
-    else static if (isBoolean!T || isIntegral!T)
+    else static if (isIntegral!T)
     {
-        result.value = v.BigInt.convTo!bytes.padLeft(0, SLOT_SIZE);
+        import std.bitmanip : nativeToBigEndian;
+        import std.traits : isSigned;
+
+        result.value = new ubyte[SLOT_SIZE];
+        auto beBytes = nativeToBigEndian(v);
+
+        static if (isSigned!T)
+        {
+            // Sign-extend: fill with 0xFF for negative, 0x00 for positive
+            ubyte fill = (v < 0) ? 0xFF : 0x00;
+            result.value[] = fill;
+        }
+        // else: already zero-initialized
+
+        result.value[$ - beBytes.length .. $] = beBytes[];
     }
     else static if (isStaticArray!T && is(ElementType!T == Unconst!ubyte))
     {
@@ -290,6 +304,14 @@ in (data.length % SLOT_SIZE == 0)
         {
             result = data[0 .. SLOT_SIZE].toHexString.ox.BigInt;
         }
+        else static if (isIntegral!T)
+        {
+            import std.bitmanip : bigEndianToNative;
+
+            ubyte[T.sizeof] lastBytes;
+            lastBytes[] = data[SLOT_SIZE - T.sizeof .. SLOT_SIZE];
+            result = bigEndianToNative!T(lastBytes);
+        }
         else static if (isStaticArray!T && is(ElementType!T == ubyte))
         {
             result[] = data[SLOT_SIZE - result.length .. SLOT_SIZE];
@@ -361,4 +383,25 @@ unittest
     runTestDecode("HelloWorld!");
     runTestDecode(s);
     runTestDecode(tuple(1.BigInt,2.BigInt,3.BigInt));
+
+    // Native integer types - unsigned
+    runTestDecode(cast(ubyte) 255);
+    runTestDecode(cast(ushort) 65535);
+    runTestDecode(cast(uint) 0xDEADBEEF);
+    runTestDecode(cast(ulong) 0xDEADBEEFCAFEBABE);
+
+    // Native integer types - signed positive
+    runTestDecode(cast(byte) 127);
+    runTestDecode(cast(short) 32767);
+    runTestDecode(cast(int) 2147483647);
+    runTestDecode(cast(long) 9223372036854775807);
+
+    // Native integer types - signed negative
+    runTestDecode(cast(byte) -1);
+    runTestDecode(cast(byte) -128);
+    runTestDecode(cast(short) -1);
+    runTestDecode(cast(short) -32768);
+    runTestDecode(cast(int) -1);
+    runTestDecode(cast(int) -2147483648);
+    runTestDecode(cast(long) -1);
 }
