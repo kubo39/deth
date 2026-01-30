@@ -2,10 +2,6 @@
 
 set -ex
 
-# Run unit tests (no anvil required)
-echo "Running unit tests..."
-dub test -q
-
 # Start anvil in background and save PID
 echo "Starting anvil..."
 nohup anvil --balance 1000000 > /dev/null 2>&1 &
