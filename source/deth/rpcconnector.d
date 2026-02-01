@@ -311,9 +311,9 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
         return eth_chainId()[2 .. $].to!ulong(16);
     }
 
-    ulong maxPriorityFeePerGas() @safe
+    BigInt maxPriorityFeePerGas() @safe
     {
-        return eth_maxPriorityFeePerGas()[2 .. $].to!ulong(16);
+        return super.eth_maxPriorityFeePerGas().BigInt;
     }
 }
 
