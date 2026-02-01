@@ -32,39 +32,40 @@ enum BlockNumber
 
 private interface IEthRPC
 {
-    string web3_clientVersion() @safe;
-    string web3_sha3(string data) @safe;
-    string net_version() @safe;
-    bool net_listening() @safe;
-    int net_peerCount() @safe;
-    string eth_protocolVersion() @safe;
-    JSONValue eth_syncing() @safe;
-    string eth_coinbase() @safe;
-    bool eth_mining() @safe;
-    string eth_hashrate() @safe;
-    string eth_gasPrice() @safe;
     string[] eth_accounts() @safe;
     string eth_blockNumber() @safe;
-    string eth_getBalance(string address, JSONValue blockNumber) @safe;
-    string eth_getStorageAt(string address, string pos, JSONValue blockNumber) @safe;
-    string eth_getTransactionCount(string address, JSONValue blockNumber) @safe;
-    string eth_getBlockTransactionCountByNumber(JSONValue blockNumber) @safe;
-    string eth_getUncleCountByBlockNumber(JSONValue blockNumber) @safe;
-    string eth_getCode(string address, JSONValue blockNumber) @safe;
-    string eth_sign(string address, string data) @safe;
-    string eth_signTransction(JSONValue tx) @safe;
-    string eth_sendTransaction(JSONValue tx) @safe;
-    string eth_sendRawTransaction(string data) @safe;
     string eth_call(JSONValue tx, JSONValue blockNumber) @safe;
-    string eth_estimateGas(JSONValue tx, JSONValue blockNumber) @safe;
     string eth_chainId() @safe;
+    string eth_coinbase() @safe;
+    string eth_estimateGas(JSONValue tx, JSONValue blockNumber) @safe;
+    string eth_gasPrice() @safe;
+    string eth_getBalance(string address, JSONValue blockNumber) @safe;
     JSONValue eth_getBlockByHash(string blockHash, bool isFull) @safe;
     JSONValue eth_getBlockByNumber(JSONValue blockNumber, bool isFull) @safe;
+    string eth_getBlockTransactionCountByNumber(JSONValue blockNumber) @safe;
+    string eth_getCode(string address, JSONValue blockNumber) @safe;
+    JSONValue eth_getLogs(JSONValue filterOptions) @safe;
+    string eth_getStorageAt(string address, string pos, JSONValue blockNumber) @safe;
     JSONValue eth_getTransactionByHash(string hash) @safe;
     JSONValue eth_getTransactionByBlockNumberAndIndex(JSONValue blockNumber, string index) @safe;
+    string eth_getTransactionCount(string address, JSONValue blockNumber) @safe;
     JSONValue eth_getTransactionReceipt(string data) @safe;
+    string eth_getUncleCountByBlockNumber(JSONValue blockNumber) @safe;
+    string eth_hashrate() @safe;
+    string eth_maxPriorityFeePerGas() @safe;
+    bool eth_mining() @safe;
     JSONValue eth_getProof(string address, string[] storageKeys, JSONValue blockNumber) @safe;
-    JSONValue eth_getLogs(JSONValue filterOptions) @safe;
+    string eth_protocolVersion() @safe;
+    string eth_sendTransaction(JSONValue tx) @safe;
+    string eth_sendRawTransaction(string data) @safe;
+    string eth_sign(string address, string data) @safe;
+    string eth_signTransction(JSONValue tx) @safe;
+    JSONValue eth_syncing() @safe;
+    bool net_listening() @safe;
+    int net_peerCount() @safe;
+    string net_version() @safe;
+    string web3_clientVersion() @safe;
+    string web3_sha3(string data) @safe;
 }
 
 private mixin template BlockNumberToJSON(alias block)
@@ -308,6 +309,11 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     ulong chainId() @safe
     {
         return eth_chainId()[2 .. $].to!ulong(16);
+    }
+
+    ulong maxPriorityFeePerGas() @safe
+    {
+        return eth_maxPriorityFeePerGas()[2 .. $].to!ulong(16);
     }
 }
 
