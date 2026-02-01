@@ -33,6 +33,7 @@ enum BlockNumber
 private interface IEthRPC
 {
     string[] eth_accounts() @safe;
+    string eth_blobBaseFee() @safe;
     string eth_blockNumber() @safe;
     string eth_call(JSONValue tx, JSONValue blockNumber) @safe;
     string eth_chainId() @safe;
@@ -306,14 +307,22 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
         return getTransactionReceipt(txHash).get;
     }
 
+    ///
     ulong chainId() @safe
     {
         return eth_chainId()[2 .. $].to!ulong(16);
     }
 
+    ///
     BigInt maxPriorityFeePerGas() @safe
     {
-        return super.eth_maxPriorityFeePerGas().BigInt;
+        return eth_maxPriorityFeePerGas().BigInt;
+    }
+
+    ///
+    BigInt blobBaseFee() @safe
+    {
+        return eth_blobBaseFee().BigInt;
     }
 }
 
