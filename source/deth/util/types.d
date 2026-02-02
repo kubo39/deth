@@ -264,14 +264,37 @@ To convTo(To, _From)(const _From f) @safe pure
         {
             LogsResponse logs;
             () @trusted {
-                logs = f.array.map!(log => Log(
-                        log[`removed`].boolean,
-                        log[`address`].str[2 .. $].convTo!Address,
-                        log[`data`].str[2 .. $].hexToBytes,
-                        log[`topics`].array
+                foreach (elem; f.array)
+                {
+                    Log log;
+                    log.remove = elem[`removed`].boolean;
+                    log.address = elem[`address`].str[2 .. $].convTo!Address;
+                    log.data = elem[`data`].str[2 .. $].hexToBytes;
+                    log.topics = elem[`topics`].array
                             .map!(topic => topic.str[2 .. $].convTo!Hash)
-                            .array
-                    )).array;
+                            .array;
+                    if (!elem[`logIndex`].isNull)
+                    {
+                        log.logIndex = elem[`logIndex`].str[2 .. $].to!ulong(16);
+                    }
+                    if (!elem[`transactionIndex`].isNull)
+                    {
+                        log.transactionIndex = elem[`transactionIndex`].str[2 .. $].to!ulong(16);
+                    }
+                    if (!elem[`transactionHash`].isNull)
+                    {
+                        log.transactionHash = elem[`transactionHash`].str.convTo!Hash;
+                    }
+                    if (!elem[`blockHash`].isNull)
+                    {
+                        log.blockHash = elem[`blockHash`].str.convTo!Hash;
+                    }
+                    if (!elem[`blockTimestamp`].isNull)
+                    {
+                        log.blockTimestamp = elem[`blockTimestamp`].str[2 .. $].to!ulong(16);
+                    }
+                    logs ~= log;
+                }
             }();
             return logs;
         }
@@ -402,9 +425,14 @@ struct TransactionInfo
 struct Log
 {
     bool removed;
-    Address address; //  DATA, 20 Bytes - address from which this log originated.
-    bytes data; //  DATA - contains one or more 32 Bytes non-indexed arguments of the log.
-    Hash[] topics; //  Array of DATA - Array of 0 to 4 32 Bytes DATA of indexed log arguments. (In solidity; //  The first topic is the hash of the signature of the event (e.g. Deposit(address,bytes32,uint256)), except you declared the event with the anonymous specifier.)
+    Nullable!ulong logIndex;
+    Nullable!ulong transactionIndex;
+    Nullable!Hash transactionHash;
+    Nullable!Hash blockHash;
+    Nullable!ulong blockTimestamp;
+    Address address;
+    bytes data;
+    Hash[] topics;
 }
 
 // https://ethereum.org/developers/docs/apis/json-rpc/#eth_getlogs
