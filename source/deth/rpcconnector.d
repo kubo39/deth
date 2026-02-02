@@ -230,6 +230,8 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     }
 
     /// Wrapper for eth_getLogs.
+    ///
+    /// https://ethereum.github.io/execution-apis/api/methods/eth_getLogs/
     Nullable!LogsResponse getLogs(BlockParameter)(LogFilter!BlockParameter filter) @trusted
     {
         JSONValue jtx;
