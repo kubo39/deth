@@ -9,8 +9,10 @@ import deth;
 enum abiPath = "artifacts/Counter.abi";
 enum binPath = "artifacts/Counter.bin";
 
-immutable CounterABI = ContractABI.load!abiPath("Counter");
-alias CounterContract = Contract!CounterABI;
+struct CounterContract
+{
+    mixin DefineContract!(loadABI!abiPath, "Counter");
+}
 
 void main()
 {
@@ -32,7 +34,7 @@ void main()
     assert(!contractAddress.isNull);
     writeln("Deployed contract at address: ", contractAddress.get.convTo!string.ox);
 
-    auto contract = new CounterContract(conn, contractAddress.get);
+    auto contract = CounterContract.at(conn, contractAddress.get);
 
     const txHash2 = contract.setNumber(42.BigInt).send();
     const receipt2 = conn.getTransactionReceipt(txHash2);
@@ -42,6 +44,6 @@ void main()
     conn.getTransactionReceipt(txHash3);
     writeln("Incremented number: ", txHash3.convTo!string.ox);
 
-    const number = contract.number();
+    const number = contract.number().call();
     writeln("Retrieved number: ", number);
 }
