@@ -2,10 +2,6 @@
 
 set -ex
 
-# Run unit tests (no anvil required)
-echo "Running unit tests..."
-dub test -q
-
 # Start anvil in background and save PID
 echo "Starting anvil..."
 nohup anvil --balance 1000000 > /dev/null 2>&1 &
@@ -24,7 +20,7 @@ trap cleanup EXIT INT TERM
 # Wait for anvil to be ready
 sleep 2
 
-# Run integration tests
+# Run unittests and integration tests
 echo "Running integration tests..."
 dub test -q --d-version=IntegrationTest -- --threads=1
 
