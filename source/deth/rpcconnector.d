@@ -646,6 +646,20 @@ unittest
     assert(mock.requestCount == 3);
 }
 
+@("mock: blobBaseFee")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(jsonHex(BigInt(1_000_000_000)));
+
+    auto fee = conn.blobBaseFee();
+
+    assert(fee == BigInt(1_000_000_000)); // 1 gwei
+    mock.assertMethodCalled("eth_blobBaseFee");
+}
+
 @("mock: RPC error handling")
 unittest
 {
