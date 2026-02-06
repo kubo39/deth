@@ -24,12 +24,14 @@ enum TransactionType : ubyte
     LEGACY  = 0,
     EIP2930 = 1,
     EIP1559 = 2,
+    EIP4844 = 3,
 }
 
 alias Transaction = SumType!(
     LegacyTransaction,
     EIP2930Transaction,
     EIP1559Transaction,
+    EIP4844Transaction,
 );
 
 JSONValue toJSON(const Transaction tx) pure @safe
@@ -38,6 +40,7 @@ JSONValue toJSON(const Transaction tx) pure @safe
         (const LegacyTransaction legacyTx) => legacyTx.toJSON,
         (const EIP2930Transaction eip2930Tx) => eip2930Tx.toJSON,
         (const EIP1559Transaction eip1559Tx) => eip1559Tx.toJSON,
+        (const EIP4844Transaction eip4844Tx) => eip4844Tx.toJSON,
     );
 }
 
@@ -48,6 +51,7 @@ Nullable!Address getFrom(const Transaction tx) pure @safe nothrow
         (const LegacyTransaction t) => t.from,
         (const EIP2930Transaction t) => t.from,
         (const EIP1559Transaction t) => t.from,
+        (const EIP4844Transaction t) => t.from,
     );
 }
 
@@ -58,6 +62,7 @@ Nullable!Address getTo(const Transaction tx) pure @safe nothrow
         (const LegacyTransaction t) => t.to,
         (const EIP2930Transaction t) => t.to,
         (const EIP1559Transaction t) => t.to,
+        (const EIP4844Transaction t) => t.to,
     );
 }
 
@@ -68,6 +73,7 @@ bytes serializeToRLP(const Transaction tx) pure @safe
         (const LegacyTransaction t) => t.serializeToRLP(),
         (const EIP2930Transaction t) => t.serializeToRLP(),
         (const EIP1559Transaction t) => t.serializeToRLP(),
+        (const EIP4844Transaction t) => t.serializeToRLP(),
     );
 }
 
@@ -78,6 +84,7 @@ bytes serializeToSignedRLP(const Transaction tx, Signature signature) pure @safe
         (const LegacyTransaction t) => t.serializeToSignedRLP(signature),
         (const EIP2930Transaction t) => t.serializeToSignedRLP(signature),
         (const EIP1559Transaction t) => t.serializeToSignedRLP(signature),
+        (const EIP4844Transaction t) => t.serializeToSignedRLP(signature),
     );
 }
 
@@ -405,6 +412,160 @@ unittest
    assert(rlpTx == expected);
 }
 
+struct EIP4844Transaction
+{
+    Nullable!Address from;
+    Nullable!ulong chainid;
+    Nullable!ulong nonce;
+    Nullable!BigInt maxPriorityFeePerGas;
+    Nullable!BigInt maxFeePerGas;
+    Nullable!BigInt gas;
+    Nullable!Address to;
+    Nullable!BigInt value;
+    Nullable!bytes data = [];
+    Nullable!AccessList accessList;
+    Nullable!BigInt maxFeePerBlobGas;
+    Nullable!(Hash[]) blobVersionedHashes;
+
+    TransactionType type() pure const nothrow @safe
+    {
+        return TransactionType.EIP4844;
+    }
+
+    JSONValue toJSON() pure const @safe
+    {
+        string[string] result;
+        static foreach (field; [
+                "from", "to", "gas", "value", "data",
+            ])
+        {
+            mixin(q{if (!%s.isNull)
+                result[`%s`] = %s.get.convTo!string.ox;}.format(field, field, field));
+        }
+        static foreach (field; [
+                "chainid", "maxFeePerGas", "maxPriorityFeePerGas", "maxFeePerBlobGas", "accessList",
+            ])
+        {
+            mixin(q{if (!%s.isNull)
+                result[`%s`] = %s.get.to!string;}.format(field, field, field));
+        }
+        if (!nonce.isNull)
+            result["nonce"] = nonce.get.to!string(16).ox;
+        auto json = result.JSONValue;
+        if (!blobVersionedHashes.isNull)
+        {
+            JSONValue[] hashes;
+            foreach (h; blobVersionedHashes.get)
+                hashes ~= JSONValue(h.convTo!string.ox);
+            json["blobVersionedHashes"] = JSONValue(hashes);
+        }
+        return json;
+    }
+
+    bytes serializeToRLP() pure const @safe
+    {
+        bytes rlpTx = [type];
+        const payloadLen =
+            chainid.encodeLength() +
+            nonce.encodeLength() +
+            maxPriorityFeePerGas.encodeLength() +
+            maxFeePerGas.encodeLength() +
+            gas.encodeLength() +
+            to.encodeLength() +
+            value.encodeLength() +
+            data.encodeLength() +
+            accessList.encodeLength() +
+            maxFeePerBlobGas.encodeLength() +
+            blobVersionedHashes.encodeLength();
+        Header header = { isList: true, payloadLen: payloadLen };
+        rlpTx.reserve(payloadLen + lengthOfPayloadLength(payloadLen));
+        header.encodeHeader(rlpTx);
+        chainid.encode(rlpTx);
+        nonce.encode(rlpTx);
+        maxPriorityFeePerGas.encode(rlpTx);
+        maxFeePerGas.encode(rlpTx);
+        gas.encode(rlpTx);
+        to.encode(rlpTx);
+        value.encode(rlpTx);
+        data.encode(rlpTx);
+        accessList.encode(rlpTx);
+        maxFeePerBlobGas.encode(rlpTx);
+        blobVersionedHashes.encode(rlpTx);
+
+        return rlpTx;
+    }
+
+    bytes serializeToSignedRLP(Signature signature) pure const @safe
+    {
+        bytes signedTx = [type];
+        const payloadLen =
+            chainid.encodeLength() +
+            nonce.encodeLength() +
+            maxPriorityFeePerGas.encodeLength() +
+            maxFeePerGas.encodeLength() +
+            gas.encodeLength() +
+            to.encodeLength() +
+            value.encodeLength() +
+            data.encodeLength() +
+            accessList.encodeLength() +
+            maxFeePerBlobGas.encodeLength() +
+            blobVersionedHashes.encodeLength() +
+            (cast(bool) signature.recid).encodeLength() +
+            signature.r.encodeLength() +
+            signature.s.encodeLength();
+        Header signedTxHeader = { isList: true, payloadLen: payloadLen };
+        signedTx.reserve(payloadLen + lengthOfPayloadLength(payloadLen));
+        signedTxHeader.encodeHeader(signedTx);
+        chainid.encode(signedTx);
+        nonce.encode(signedTx);
+        maxPriorityFeePerGas.encode(signedTx);
+        maxFeePerGas.encode(signedTx);
+        gas.encode(signedTx);
+        to.encode(signedTx);
+        value.encode(signedTx);
+        data.encode(signedTx);
+        accessList.encode(signedTx);
+        maxFeePerBlobGas.encode(signedTx);
+        blobVersionedHashes.encode(signedTx);
+        (cast(bool) signature.recid).encode(signedTx);
+        signature.r.encode(signedTx);
+        signature.s.encode(signedTx);
+
+        return signedTx;
+    }
+}
+
+@("eip-4844 encoding test")
+unittest
+{
+    Hash hash1 = "0x01a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8".convTo!Hash;
+    Hash hash2 = "0x01b0a4cdd5f55589f5c5b4d46c76704bb6ce95c0a8c09f77f197a57808dded28".convTo!Hash;
+    EIP4844Transaction tx = {
+        chainid: 1,
+        nonce: 0,
+        maxPriorityFeePerGas: "2000000000".BigInt,
+        maxFeePerGas: "3000000000".BigInt,
+        gas: "21000".BigInt,
+        to: "0x6b175474e89094c44da98b954eedeac495271d0f".convTo!Address,
+        value: "0".BigInt,
+        data: (cast(bytes) []),
+        maxFeePerBlobGas: "1000000000".BigInt,
+        blobVersionedHashes: [hash1, hash2],
+    };
+    auto rlpTx = tx.serializeToRLP();
+    // Verify type prefix byte is 0x03
+    assert(rlpTx[0] == 0x03);
+
+    import secp256k1 : secp256k1;
+    auto privateKey = "0x77065b8ddb2f89d3d2d83f46d0147efc081e3a3f1012406c698a9ce364b324e9".convTo!Hash;
+    auto c = new secp256k1(privateKey);
+    auto signedRlpTx = tx.serializeToSignedRLP(c.sign(rlpTx));
+    // Verify signed tx also starts with 0x03
+    assert(signedRlpTx[0] == 0x03);
+    // Signed tx should be longer than unsigned (has v, r, s)
+    assert(signedRlpTx.length > rlpTx.length);
+}
+
 struct LegacyTransaction
 {
     Nullable!Address from;
@@ -516,6 +677,8 @@ static foreach (f, t; [
         "MaxPriorityFeePerGas": "BigInt",
         "MaxFeePerGas": "BigInt",
         "AccessList": "bytes",
+        "MaxFeePerBlobGas": "BigInt",
+        "BlobVersionedHashes": "Hash[]",
     ])
 {
     mixin NamedParameter!(f, t);
@@ -525,6 +688,7 @@ alias SendableTransaction = SumType!(
     SendableLegacyTransaction,
     SendableEIP2930Transaction,
     SendableEIP1559Transaction,
+    SendableEIP4844Transaction,
 );
 
 Hash send(ARGS...)(SendableTransaction tx, ARGS params) @safe
@@ -533,6 +697,7 @@ Hash send(ARGS...)(SendableTransaction tx, ARGS params) @safe
         (SendableLegacyTransaction legacyTx) => legacyTx.send(params),
         (SendableEIP2930Transaction eip2930Tx) => eip2930Tx.send(params),
         (SendableEIP1559Transaction eip1559Tx) => eip1559Tx.send(params),
+        (SendableEIP4844Transaction eip4844Tx) => eip4844Tx.send(params),
     );
 }
 
@@ -565,6 +730,72 @@ struct SendableEIP1559Transaction
                 tx.maxFeePerGas = params[i].value;
             else static if (is(ARGS[i] == AccessList))
                 tx.accessList = params[i].value;
+            else
+                static assert(0, "Not supported param " ~ ARGS[i].stringof);
+        }
+
+        if (tx.from.isNull)
+        {
+            auto accList = conn.accounts ~ conn.remoteAccounts;
+            enforce(accList.length > 0, " No accounts are unlocked");
+            tx.from = accList[0];
+        }
+        if (tx.gas.isNull)
+        {
+            tx.gas = conn.estimateGas(Transaction(tx)) * conn.gasEstimatePercentage / 100;
+        }
+        synchronized
+        {
+            if (tx.nonce.isNull)
+            {
+                tx.nonce = conn.getTransactionCount(tx.from.get);
+            }
+            if (conn.isUnlocked(tx.from.get))
+            {
+                return conn.sendRawTransaction(Transaction(tx));
+            }
+            else if (conn.isUnlockedRemote(tx.from.get))
+            {
+                return conn.sendTransaction(Transaction(tx));
+            }
+        }
+        assert(0);
+    }
+}
+
+struct SendableEIP4844Transaction
+{
+    EIP4844Transaction tx;
+    private RPCConnector conn;
+
+    Hash send(ARGS...)(ARGS params) @safe
+    {
+        static foreach (i; 0 .. ARGS.length)
+        {
+            static if (is(ARGS[i] == From))
+                tx.from = params[i].value;
+            else static if (is(ARGS[i] == To))
+                tx.to = params[i].value;
+            else static if (is(ARGS[i] == Value))
+                tx.value = params[i].value;
+            else static if (is(ARGS[i] == Gas))
+                tx.gas = params[i].value;
+            else static if (is(ARGS[i] == Nonce))
+                tx.nonce = params[i].value;
+            else static if (is(ARGS[i] == Data))
+                tx.data = params[i].value;
+            else static if (is(ARGS[i] == ChainId))
+                tx.chainid = params[i].value;
+            else static if (is(ARGS[i] == MaxPriorityFeePerGas))
+                tx.maxPriorityFeePerGas = params[i].value;
+            else static if (is(ARGS[i] == MaxFeePerGas))
+                tx.maxFeePerGas = params[i].value;
+            else static if (is(ARGS[i] == AccessList))
+                tx.accessList = params[i].value;
+            else static if (is(ARGS[i] == MaxFeePerBlobGas))
+                tx.maxFeePerBlobGas = params[i].value;
+            else static if (is(ARGS[i] == BlobVersionedHashes))
+                tx.blobVersionedHashes = params[i].value;
             else
                 static assert(0, "Not supported param " ~ ARGS[i].stringof);
         }
