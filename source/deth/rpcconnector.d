@@ -31,8 +31,15 @@ enum BlockNumber
     FINALIZED = `finalized`,
 }
 
+// https://ethereum.github.io/execution-apis/
 private interface IEthRPC
 {
+    JSONValue debug_getBadBlocks() @safe;
+    string debug_getRawBlock(JSONValue blockNumber) @safe;
+    string debug_getRawHeader(JSONValue blockNumber) @safe;
+    string[] debug_getRawReceipts(JSONValue blockNumber) @safe;
+    string debug_getRawTransaction(string data) @safe;
+
     string[] eth_accounts() @safe;
     string eth_blobBaseFee() @safe;
     string eth_blockNumber() @safe;
