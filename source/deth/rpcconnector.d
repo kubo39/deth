@@ -21,6 +21,7 @@ import rpc.protocol.json;
 import rpc.core : IRpcClient, RpcInterfaceSettings, HttpRpcClient;
 import secp256k1 : secp256k1;
 
+///
 enum BlockNumber
 {
     EARLIEST = `earliest`,
@@ -242,13 +243,13 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
         JSONValue jtx;
         if (!filter.from.isNull)
         {
-            auto block = filter.from.get;
+            const block = filter.from.get;
             mixin BlockNumberToJSON!block;
             jtx["from"] = _block;
         }
         if (!filter.to.isNull)
         {
-            auto block = filter.to.get;
+            const block = filter.to.get;
             mixin BlockNumberToJSON!block;
             jtx["to"] = _block;
         }
@@ -333,6 +334,7 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     }
 }
 
+private:
 
 // Integration tests - require anvil running on localhost:8545
 // Run with: dub test -- -d IntegrationTest
@@ -356,7 +358,6 @@ version (IntegrationTest)
         auto conn = new RPCConnector("http://127.0.0.1:8545");
 
         const accounts = conn.remoteAccounts();
-        const alice = accounts[0];
         const bob = accounts[1];
 
         // anvil's default private key.
@@ -451,7 +452,7 @@ version (IntegrationTest)
         auto storageKeys = [
             "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
         ];
-        auto proof = conn.getProof(address, storageKeys);
+        const proof = conn.getProof(address, storageKeys);
         assert(proof.get.address == address);
     }
 
@@ -460,7 +461,7 @@ version (IntegrationTest)
     unittest
     {
         auto conn = new RPCConnector("http://127.0.0.1:8545");
-        assert(conn.chainId() == 31337 /* anvil's default chain id */);
+        assert(conn.chainId() == 31_337 /* anvil's default chain id */);
     }
 }
 
@@ -515,6 +516,7 @@ version (unittest)
         bool connect() @safe nothrow { return true; }
         void tick() @safe {}
 
+        ///
         Response sendRequestAndWait(JsonRpcRequest!int request, Duration timeout = Duration.max()) @safe
         {
             _calledMethods ~= request.method;
@@ -542,9 +544,9 @@ unittest
     auto mock = new MockRpcClient();
     auto conn = new RPCConnector(mock);
 
-    mock.enqueueResponse(jsonHex(31337UL));
+    mock.enqueueResponse(jsonHex(31_337UL));
 
-    assert(conn.chainId() == 31337);
+    assert(conn.chainId() == 31_337);
     mock.assertMethodCalled("eth_chainId");
 }
 
@@ -557,7 +559,7 @@ unittest
     mock.enqueueResponse(jsonHex(BigInt("100000000000000000000")));
 
     Address addr;
-    auto balance = conn.getBalance(addr);
+    const balance = conn.getBalance(addr);
 
     assert(balance == BigInt("100000000000000000000")); // 100 ETH in wei
     mock.assertMethodCalled("eth_getBalance");
@@ -571,7 +573,7 @@ unittest
 
     mock.enqueueResponse(jsonHex(BigInt(20_000_000_000)));
 
-    auto price = conn.gasPrice();
+    const price = conn.gasPrice();
 
     assert(price == BigInt(20_000_000_000)); // 20 gwei
     mock.assertMethodCalled("eth_gasPrice");
@@ -586,7 +588,7 @@ unittest
     mock.enqueueResponse(jsonHex(42UL));
 
     Address addr;
-    auto count = conn.getTransactionCount(addr);
+    const count = conn.getTransactionCount(addr);
 
     assert(count == 42);
     mock.assertMethodCalled("eth_getTransactionCount");
@@ -598,12 +600,12 @@ unittest
     auto mock = new MockRpcClient();
     auto conn = new RPCConnector(mock);
 
-    mock.enqueueResponse(jsonHex(BigInt(21000)));
+    mock.enqueueResponse(jsonHex(BigInt(21_000)));
 
     LegacyTransaction tx;
-    auto gas = conn.estimateGas(Transaction(tx));
+    const gas = conn.estimateGas(Transaction(tx));
 
-    assert(gas == BigInt(21000));
+    assert(gas == BigInt(21_000));
     mock.assertMethodCalled("eth_estimateGas");
 }
 
@@ -655,7 +657,7 @@ unittest
     auto mock = new MockRpcClient();
     auto conn = new RPCConnector(mock);
 
-    mock.enqueueError(-32000, "execution reverted");
+    mock.enqueueError(-32_000, "execution reverted");
 
     assertThrown!RpcException(conn.chainId());
 }

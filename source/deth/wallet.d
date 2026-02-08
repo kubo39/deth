@@ -7,13 +7,14 @@ import deth.util.types : Address;
 /// struct to store several private keys in a single wallet
 struct Wallet
 {
+    ///
     this(ARGS...)(ARGS signers) @safe
     {
         foreach (signer; signers)
             addSigner(signer);
     }
 
-    // add a signer.
+    /// add a signer.
     void addSigner(Signer signer) @safe
     {
         _signers[signer.address] = signer;

@@ -53,6 +53,7 @@ private struct EncodingResult
     }
 }
 
+///
 EncodingResult encodeUnit(T)(const T v) pure @safe
 {
     EncodingResult result;
@@ -191,7 +192,7 @@ version (unittest)
     {
         import std.digest : toHexString;
 
-        auto encoded = encode(argv).toHexString;
+        const encoded = encode(argv).toHexString;
         assert(expected == encoded, encoded);
         assert(expected.length % 64 == 0);
     }
@@ -296,9 +297,9 @@ in (data.length % SLOT_SIZE == 0)
         }
         else static if (isDynamicArray!T)
         {
-            long offset = data[0 .. SLOT_SIZE].decode!BigInt.toLong - offsetShift;
+            const long offset = data[0 .. SLOT_SIZE].decode!BigInt.toLong - offsetShift;
             auto arrayData = data[offset .. $];
-            long len = arrayData[0 .. SLOT_SIZE].decode!BigInt.toLong;
+            const long len = arrayData[0 .. SLOT_SIZE].decode!BigInt.toLong;
             foreach (i; 0 .. len)
             {
                 alias Element = ElementType!T;
@@ -341,7 +342,7 @@ version (unittest)
 {
     private void runTestDecode(T)(T a)
     {
-        auto got = a.encode.decode!T;
+        const got = a.encode.decode!T;
         assert(got == a, got.to!string);
     }
 }

@@ -19,6 +19,7 @@ import rlp.header;
 import secp256k1 : Signature;
 
 // https://eips.ethereum.org/EIPS/eip-2718
+///
 enum TransactionType : ubyte
 {
     LEGACY  = 0,
@@ -32,6 +33,7 @@ alias Transaction = SumType!(
     EIP1559Transaction,
 );
 
+///
 JSONValue toJSON(const Transaction tx) pure @safe
 {
     return tx.match!(
@@ -81,23 +83,35 @@ bytes serializeToSignedRLP(const Transaction tx, Signature signature) pure @safe
     );
 }
 
+///
 struct EIP2930Transaction
 {
+    ///
     Nullable!Address from;
+    ///
     Nullable!ulong chainid;
+    ///
     Nullable!ulong nonce;
+    ///
     Nullable!BigInt gasPrice;
+    ///
     Nullable!BigInt gas;
+    ///
     Nullable!Address to;
+    ///
     Nullable!BigInt value;
+    ///
     Nullable!bytes data = [];
+    ///
     Nullable!AccessList accessList;
 
+    ///
     TransactionType type() pure const nothrow @safe
     {
         return TransactionType.EIP2930;
     }
 
+    ///
     JSONValue toJSON() pure const @safe
     {
         string[string] result;
@@ -120,6 +134,7 @@ struct EIP2930Transaction
         return result.JSONValue;
     }
 
+    ///
     bytes serializeToRLP() pure const @safe
     {
         bytes rlpTx = [type];
@@ -147,6 +162,7 @@ struct EIP2930Transaction
         return rlpTx;
     }
 
+    ///
     bytes serializeToSignedRLP(Signature signature) pure const @safe
     {
         bytes signedTx = [type];
@@ -182,7 +198,7 @@ struct EIP2930Transaction
 }
 
 @("eip-2930 encoding test")
-unittest
+private unittest
 {
     // the case is taken from https://github.com/ethers-io/ethers.js
     AccessListItem[] accessList = [
@@ -235,8 +251,8 @@ unittest
         "3d649f9516fca834cd5a49c7b6e5ba1286a30eea1ac2e89c78441c5418250f8e30").convTo!bytes,
         accessList: accessList.nullable,
     };
-    auto rlpTx = tx.serializeToRLP();
-    auto expected =
+    const rlpTx = tx.serializeToRLP();
+    const expected =
                    ("0x01f902f683ef36a882024185b3b1aaeb5884be431918944d1060d970674619005137921969b4bfe3eea6b882c72cb8" ~
     "53e07f2239c398167e747939f64b2ed9458db8aa10eb367bfab1976a0bc6693cf152dd8d13aa16e4d655a38d6ac64eae0932e13d649f9516" ~
     "fca834cd5a49c7b6e5ba1286a30eea1ac2e89c78441c5418250f8e30f90274f89b948a632c23bf807681570c3fb6632ce99fd98bdb23f884" ~
@@ -256,8 +272,8 @@ unittest
     import secp256k1 : secp256k1;
     auto privateKey = "0x77065b8ddb2f89d3d2d83f46d0147efc081e3a3f1012406c698a9ce364b324e9".convTo!Hash;
     auto c = new secp256k1(privateKey);
-    auto signedRlpTx = tx.serializeToSignedRLP(c.sign(rlpTx));
-    auto expectedSigned =
+    const signedRlpTx = tx.serializeToSignedRLP(c.sign(rlpTx));
+    const expectedSigned =
                          ("0x01f9033983ef36a882024185b3b1aaeb5884be431918944d1060d970674619005137921969b4bfe3eea6b882" ~
     "c72cb853e07f2239c398167e747939f64b2ed9458db8aa10eb367bfab1976a0bc6693cf152dd8d13aa16e4d655a38d6ac64eae0932e13d64" ~
     "9f9516fca834cd5a49c7b6e5ba1286a30eea1ac2e89c78441c5418250f8e30f90274f89b948a632c23bf807681570c3fb6632ce99fd98bdb" ~
@@ -277,24 +293,37 @@ unittest
     assert(signedRlpTx == expectedSigned);
 }
 
+///
 struct EIP1559Transaction
 {
+    ///
     Nullable!Address from;
+    ///
     Nullable!ulong chainid;
+    ///
     Nullable!ulong nonce;
+    ///
     Nullable!BigInt maxPriorityFeePerGas;
+    ///
     Nullable!BigInt maxFeePerGas;
+    ///
     Nullable!BigInt gas;
+    ///
     Nullable!Address to;
+    ///
     Nullable!BigInt value;
+    ///
     Nullable!bytes data = [];
+    ///
     Nullable!AccessList accessList;
 
+    ///
     TransactionType type() pure const nothrow @safe
     {
         return TransactionType.EIP1559;
     }
 
+    ///
     JSONValue toJSON() pure const @safe
     {
         string[string] result;
@@ -317,6 +346,7 @@ struct EIP1559Transaction
         return result.JSONValue;
     }
 
+    ///
     bytes serializeToRLP() pure const @safe
     {
         bytes rlpTx = [type];
@@ -342,10 +372,11 @@ struct EIP1559Transaction
         value.encode(rlpTx);
         data.encode(rlpTx);
         accessList.encode(rlpTx);
-        
+
         return rlpTx;
     }
 
+    ///
     bytes serializeToSignedRLP(Signature signature) pure const @safe
     {
         bytes signedTx = [type];
@@ -397,23 +428,32 @@ unittest
         ("0xa9059cbb0000000000000000000000005322b34c88ed0691971bf52a7047448f0f4efc8400000000000000000000000000000" ~
          "00000000000000000001bc16d674ec80000").convTo!bytes,
     };
-    auto rlpTx = tx.serializeToRLP();
-    auto expected = 
+    const rlpTx = tx.serializeToRLP();
+    const expected =
         ("0x02f86D0180847735940084b2d05e00830130b9946b175474e89094c44da98b954eedeac495271d0f80b844a9059cbb0" ~
    "000000000000000000000005322b34c88ed0691971bf52a7047448f0f4efc840000000000000000000000000000000000000000000000001b" ~
    "c16d674ec80000c0").convTo!bytes;
    assert(rlpTx == expected);
 }
 
+///
 struct LegacyTransaction
 {
+    ///
     Nullable!Address from;
+    ///
     Nullable!Address to;
+    ///
     Nullable!BigInt gas;
+    ///
     Nullable!BigInt gasPrice;
+    ///
     Nullable!BigInt value;
+    ///
     Nullable!bytes data = [];
+    ///
     Nullable!ulong nonce;
+    ///
     Nullable!ulong chainid;
 
     invariant
@@ -423,6 +463,7 @@ struct LegacyTransaction
         assert(value.isNull || value.get >= 0);
     }
 
+    ///
     JSONValue toJSON() pure const @safe
     {
         string[string] result;
@@ -438,6 +479,7 @@ struct LegacyTransaction
         return result.JSONValue;
     }
 
+    ///
     bytes serializeToRLP() pure const @safe
     {
         bytes rlpTx;
@@ -471,10 +513,11 @@ struct LegacyTransaction
         return rlpTx;
     }
 
+    ///
     bytes serializeToSignedRLP(Signature signature) pure const @safe
     {
         bytes signedTx;
-        ulong v = chainid.isNull
+        const ulong v = chainid.isNull
             ? 27 + signature.recid
             : signature.recid + chainid.get * 2 + 35 /* eip 155 signing */ ;
         const payloadLen =
@@ -527,6 +570,7 @@ alias SendableTransaction = SumType!(
     SendableEIP1559Transaction,
 );
 
+///
 Hash send(ARGS...)(SendableTransaction tx, ARGS params) @safe
 {
     return tx.match!(
@@ -536,11 +580,14 @@ Hash send(ARGS...)(SendableTransaction tx, ARGS params) @safe
     );
 }
 
+///
 struct SendableEIP1559Transaction
 {
+    ///
     EIP1559Transaction tx;
     private RPCConnector conn;
 
+    ///
     Hash send(ARGS...)(ARGS params) @safe
     {
         static foreach (i; 0 .. ARGS.length)
@@ -598,11 +645,14 @@ struct SendableEIP1559Transaction
     }
 }
 
+///
 struct SendableEIP2930Transaction
 {
+    ///
     EIP2930Transaction tx;
     private RPCConnector conn;
 
+    ///
     Hash send(ARGS...)(ARGS params) @safe
     {
         static foreach (i; 0 .. ARGS.length)
@@ -658,11 +708,14 @@ struct SendableEIP2930Transaction
     }
 }
 
+///
 struct SendableLegacyTransaction
 {
+    ///
     LegacyTransaction tx;
     private RPCConnector conn;
 
+    ///
     Hash send(ARGS...)(ARGS params) @safe
     {
         static foreach (i; 0 .. ARGS.length)
@@ -718,6 +771,7 @@ struct SendableLegacyTransaction
     }
 }
 
+///
 mixin template NamedParameter(string fieldName, string type)
 {
     mixin(q{

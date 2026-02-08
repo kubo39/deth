@@ -25,6 +25,7 @@ class Signer
         keypair = new secp256k1(privateKey);
     }
 
+    ///
     Address address() @safe pure nothrow const
     {
         return keypair.address;

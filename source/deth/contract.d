@@ -30,13 +30,19 @@ alias NonABIContract = Contract!();
 ///   abi = abi of contract  
 class Contract(ContractABI abi = ContractABI.init)
 {
+    ///
     Address address;
     private RPCConnector conn;
+    ///
     static Mutex __bytecodeMutex;
-    __gshared static bytes bytecode;
-    __gshared static string bytecode_s;
-    __gshared static size_t[string] spaceholders;
+    ///
+    __gshared bytes bytecode;
+    ///
+    __gshared string bytecode_s;
+    ///
+    __gshared size_t[string] spaceholders;
 
+    ///
     this(RPCConnector conn, Address addr)
     {
         this.conn = conn;
@@ -49,8 +55,7 @@ class Contract(ContractABI abi = ContractABI.init)
     }
     mixin(allFunctions(abi));
 
-    // FIXME
-    // Sends transaction for deploy contract
+    /// Sends transaction for deploy contract
     static auto deployTx(ARGS...)(RPCConnector conn, ARGS argv)
     {
         __lockMutex;
@@ -72,7 +77,7 @@ class Contract(ContractABI abi = ContractABI.init)
         return " Contract on 0x" ~ address.convTo!string;
     }
 
-    // FIMXE
+    ///
     auto callMethod(Selector selector, ARGS...)(Address from, BigInt value, ARGS argv)
     {
         LegacyTransaction legacyTx;
@@ -86,7 +91,7 @@ class Contract(ContractABI abi = ContractABI.init)
         return conn.call(tx, BlockNumber.LATEST);
     }
 
-    // FIXME
+    ///
     auto sendMethod(Selector selector, ARGS...)(ARGS argv)
     {
         LegacyTransaction legacyTx;
@@ -98,6 +103,7 @@ class Contract(ContractABI abi = ContractABI.init)
         return tx;
     }
 
+    ///
     auto callMethodS(string signature, Result = void, ARGS...)(ARGS argv)
     {
         static immutable selector = keccak256(cast(ubyte[]) signature)[0 .. 4];
@@ -109,6 +115,7 @@ class Contract(ContractABI abi = ContractABI.init)
             return data.decode!(Result);
     }
 
+    ///
     auto sendMethodS(string signature, Result = void, ARGS...)(ARGS argv)
     {
         static immutable selector = keccak256(cast(ubyte[]) signature)[0 .. 4];
@@ -121,6 +128,7 @@ class Contract(ContractABI abi = ContractABI.init)
         tracef("Calling %s %s(0x%s)", selector, abi.contractName, this.address.convTo!string);
     }
 
+    ///
     static void link(string contractName, Address addr)
     {
         __lockMutex;
@@ -134,9 +142,11 @@ class Contract(ContractABI abi = ContractABI.init)
         }
         scope(exit)__unlockMutex;
     }
+    ///
     static void __lockMutex(){
         if(__bytecodeMutex)__bytecodeMutex.lock;
     }
+    ///
     static void __unlockMutex(){
         if(__bytecodeMutex)__bytecodeMutex.unlock;
     }
@@ -189,11 +199,16 @@ private string allFunctions(ContractABI abi)
 /// contains abi for contructor, functions, events
 struct ContractABI
 {
+    ///
     string contractName = "Noname";
+    ///
     string[] constructorInputs;
+    ///
     ContractFunction[] functions;
+    ///
     ContractEvent[] events;
 
+    ///
     static auto load(string file)(string name = null, string[] path = []) @safe
     {
         import structjson : parseJSON;
@@ -206,6 +221,7 @@ struct ContractABI
         return ContractABI(o, name);
     }
 
+    ///
     this(string jsontext, string name = null) @safe
     {
         import structjson : parseJSON;
@@ -213,6 +229,7 @@ struct ContractABI
         this(jsontext.parseJSON, name);
     }
 
+    ///
     this(JSONValue abi, string name = null) @safe
     {
         if (name !is null)
@@ -249,7 +266,7 @@ struct ContractABI
         JSONValue[] items = () @trusted { return abi.array; }();
         foreach (i; 0 .. items.length)
         {
-            string type = items[i][`type`].str;
+            const type = items[i][`type`].str;
             if (`function` == type)
                 functionFromJson(items[i]);
             if (`constructor` == type)
@@ -310,18 +327,27 @@ private string getSignature(string name, string[] args) @safe pure
     return name ~ `(` ~ args.join(',') ~ `)`;
 }
 
+///
 struct ContractFunction
 {
 
+    ///
     string name;
+    ///
     Selector selector;
+    ///
     string outputType;
+    ///
     string[] inputTypes;
+    ///
     Mutability mutability;
+    ///
     bool payable;
+    ///
     bool constant;
     mixin Signature;
 
+    ///
     string dSignature(string[] additional...) @safe pure
     {
         string[] args = [];
@@ -345,11 +371,16 @@ struct ContractFunction
     }
 }
 
+///
 struct ContractEvent
 {
+    ///
     string name;
+    ///
     Hash sigHash;
+    ///
     string[] inputTypes;
+    ///
     string[] indexedInputTypes;
     mixin Signature;
 }
@@ -436,6 +467,7 @@ unittest
     assert("bytes32".toDType == "ubyte[32]", "bytes32".toDType);
 }
 
+///
 enum Mutability
 {
     PURE = "pure",
