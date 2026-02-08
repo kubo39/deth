@@ -15,6 +15,7 @@ alias Address = ubyte[20];
 alias Hash = ubyte[32];
 alias bytes = ubyte[];
 
+///
 bytes hexToBytes(string s) @safe pure
 {
     import std.algorithm : map, startsWith;
@@ -30,6 +31,7 @@ bytes hexToBytes(string s) @safe pure
         .array;
 }
 
+///
 string toHex(const(BigInt) x) @safe pure
 {
     import std.array : appender;
@@ -44,6 +46,7 @@ unittest
     assert("0x123".hexToBytes == [0x1, 0x23]);
 }
 
+///
 To convTo(To, _From)(const _From f) @safe pure
 {
     import std.traits : Unconst, isIntegral;
@@ -308,10 +311,10 @@ unittest
     import std.range : iota;
 
     ///looks like big endian coding
-    bytes becodedNum = [15, 255, 255, 255, 255, 170];
+    const bytes becodedNum = [15, 255, 255, 255, 255, 170];
     assert(`0xfffffffffaa`.BigInt.convTo!bytes == becodedNum);
 
-    Address addr;
+    const Address addr;
     assert(addr.convTo!string == 20.iota.array.map!q{"00"}.join);
 
     enum T
@@ -323,12 +326,14 @@ unittest
     assert(!__traits(compiles, addr.convTo!T), `shouldn't compile with undefined conv pair`);
 }
 
-auto ox(T)(const T t) pure @safe 
+///
+auto ox(T)(const T t) pure @safe
 {
     return `0x` ~ t[];
 }
 
-bytes padLeft(const bytes data, ubyte b, ulong count) pure @safe 
+///
+bytes padLeft(const bytes data, ubyte b, ulong count) pure @safe
 {
     if (count > data.length)
     {
@@ -340,6 +345,7 @@ bytes padLeft(const bytes data, ubyte b, ulong count) pure @safe
         return data.dup;
 }
 
+///
 bytes padRight(const bytes data, ubyte b, ulong count) pure @safe
 {
     if (count > data.length)
@@ -362,117 +368,197 @@ unittest
 }
 
 // https://ethereum.org/developers/docs/apis/json-rpc/#eth_getblockbyhash
+///
 struct BlockResponse
 {
+    ///
     Nullable!ulong number;
+    ///
     Nullable!Hash hash;
+    ///
     Nullable!Hash parentHash;
+    ///
     ulong nonce;
+    ///
     Hash sha3Uncles;
+    ///
     Nullable!bytes logsBloom;
+    ///
     Hash transactionsRoot;
+    ///
     Hash stateRoot;
+    ///
     Hash receiptsRoot;
+    ///
     Address miner;
+    ///
     BigInt difficulty;
+    ///
     BigInt totalDifficulty;
+    ///
     bytes extraData;
+    ///
     ulong size;
+    ///
     BigInt gasLimit;
+    ///
     BigInt gasUsed;
+    ///
     BigInt timestamp;
+    ///
     bytes[] transactions;
+    ///
     Hash[] uncles;
 }
 
 // https://ethereum.org/developers/docs/apis/json-rpc/#eth_gettransactionreceipt
+///
 struct TransactionReceipt
 {
+    ///
     Hash transactionHash; // DATA, 32 Bytes - hash of the transaction.
+    ///
     ulong transactionIndex; // QUANTITY - integer of the transactions index position in the block.
+    ///
     Hash blockHash; // DATA, 32 Bytes - hash of the block where this transaction was in.
+    ///
     ulong blockNumber; // QUANTITY - block number where this transaction was in.
+    ///
     Address from; // DATA, 20 Bytes - address of the sender.
+    ///
     Nullable!Address to; // DATA, 20 Bytes - address of the receiver. null when its a contract creation transaction.
+    ///
     BigInt cumulativeGasUsed; // QUANTITY - The total amount of gas used when this transaction was executed in the block.
+    ///
     BigInt gasUsed; // QUANTITY - The amount of gas used by this specific transaction alone.
+    ///
     Nullable!Address contractAddress; // DATA, 20 Bytes - The contract address created, if the transaction was a contract creation, otherwise null.
+    ///
     Log[] logs; // Array - Array of log objects, which this transaction generated.
+    ///
     bytes logsBloom; // DATA, 256 Bytes - Bloom filter for light clients to quickly retrieve related logs.a
+    ///
     ulong type; // QUANTITY - integer of the transaction type, 0x0 for legacy transactions, 0x1 for access list types, 0x2 for dynamic fees.
 }
 
 // https://ethereum.org/developers/docs/apis/json-rpc/#eth_gettransactionbyhash
+///
 struct TransactionInfo
 {
+    ///
     Nullable!Hash blockHash;
+    ///
     Nullable!ulong blockNumber;
+    ///
     Address from;
+    ///
     BigInt gas;
+    ///
     BigInt gasPrice;
+    ///
     Hash hash;
+    ///
     bytes input;
+    ///
     ulong nonce;
+    ///
     Nullable!Address to;
+    ///
     Nullable!ulong transactionIndex;
+    ///
     BigInt value;
 
+    ///
     ulong v;
+    ///
     Hash r;
+    ///
     Hash s;
 }
 
+///
 struct Log
 {
+    ///
     bool removed;
+    ///
     Nullable!ulong logIndex;
+    ///
     Nullable!ulong transactionIndex;
+    ///
     Nullable!Hash transactionHash;
+    ///
     Nullable!Hash blockHash;
+    ///
     Nullable!ulong blockTimestamp;
+    ///
     Address address;
+    ///
     bytes data;
+    ///
     Hash[] topics;
 }
 
 // https://ethereum.org/developers/docs/apis/json-rpc/#eth_getlogs
+///
 struct LogFilter(BlockParameter)
 {
+    ///
     Nullable!BlockParameter from;
+    ///
     Nullable!BlockParameter to;
+    ///
     Nullable!Address address;
+    ///
     Nullable!(Hash[]) topics;
 }
 
+///
 struct LogsResponse
 {
+    ///
     Nullable!(Log[]) logs;
     alias logs this;
 }
 
+///
 struct StorageProof
 {
+    ///
     bytes key; // Storage key.
+    ///
     bytes value; // Value that the key holds
+    ///
     bytes[] proof; // proof for the pair
 }
 
 // https://github.com/ethereum/execution-apis/blob/v1.0.0-beta.4/src/schemas/state.yaml#L1
+///
 struct ProofResponse
 {
+    ///
     Address address;
+    ///
     bytes[] accountProof;
+    ///
     BigInt balance;
+    ///
     Hash codeHash;
+    ///
     ulong nonce;
+    ///
     Hash storageHash;
+    ///
     StorageProof[] storageProof;
 }
 
 alias AccessList = AccessListItem[];
 
+///
 struct AccessListItem
 {
+    ///
     Address addess;
+    ///
     BigInt[] storageKeys;
 }

@@ -6,9 +6,12 @@ import std.stdio;
 
 import deth;
 
+///
 enum abiPath = "artifacts/Counter.abi";
+///
 enum binPath = "artifacts/Counter.bin";
 
+///
 immutable CounterABI = ContractABI.load!abiPath("Counter");
 alias CounterContract = Contract!CounterABI;
 
@@ -35,7 +38,7 @@ void main()
     auto contract = new CounterContract(conn, contractAddress.get);
 
     const txHash2 = contract.setNumber(42.BigInt).send();
-    const receipt2 = conn.getTransactionReceipt(txHash2);
+    conn.getTransactionReceipt(txHash2);
     writeln("Set number to 42: ", txHash2.convTo!string.ox);
 
     const txHash3 = contract.increment().send();

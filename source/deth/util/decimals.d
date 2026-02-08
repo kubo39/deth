@@ -2,11 +2,13 @@ module deth.util.decimals;
 
 import std.bigint : BigInt;
 
+///
 auto toWei(ulong decimals, T)(T value) pure nothrow @safe
 {
     return value.BigInt * (10.BigInt ^^ decimals);
 }
 
+///
 mixin template Converter(ulong decimal, string name)
 {
     private import std.string : format;

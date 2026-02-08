@@ -8,7 +8,6 @@ void main()
     auto conn = new RPCConnector("http://127.0.0.1:8545");
 
     const accounts = conn.remoteAccounts();
-    const alice = accounts[0];
     const bob = accounts[1];
 
     // anvil's first default private key. (for alice)
@@ -24,6 +23,6 @@ void main()
         chainid: chainid
     };
     const txHash = SendableLegacyTransaction(tx, conn).send();
-    const _receipt = conn.waitForTransactionReceipt(txHash);
+    conn.waitForTransactionReceipt(txHash);
     writeln("Sent transaction: ", txHash.convTo!string.ox);
 }

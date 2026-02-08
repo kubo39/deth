@@ -5,9 +5,12 @@ import std.stdio;
 
 import deth;
 
+///
 enum abiPath = "contractBuild/Test.abi";
+///
 enum binPath = "contractBuild/Test.bin";
 
+///
 static immutable TestABI = ContractABI.load!abiPath("Test");
 alias TestContract = Contract!TestABI;
 
