@@ -207,6 +207,8 @@ struct ContractABI
     ContractFunction[] functions;
     ///
     ContractEvent[] events;
+    ///
+    ContractError[] errors;
 
     ///
     static auto load(string file)(string name = null, string[] path = []) @safe
@@ -260,6 +262,7 @@ struct ContractABI
         return "deployTx".getSignature(args);
     }
 
+    // https://docs.soliditylang.org/en/latest/abi-spec.html#json
     private void fromJSON(JSONValue abi) @safe pure
     {
         assert(abi.type == JSONType.array);
@@ -268,15 +271,17 @@ struct ContractABI
         {
             const type = item[`type`].str;
             if (`function` == type)
-                functionFromJson(item);
+                functions ~= functionFromJson(item);
             if (`constructor` == type)
                 constructorInputs = item[`inputs`].parseInputs;
             if (`event` == type)
-                eventFromJson(item);
+                events ~= eventFromJson(item);
+            if (`error` == type)
+                errors ~= errorFromJson(item);
         }
     }
 
-    private void functionFromJson(JSONValue item) @safe pure
+    private ContractFunction functionFromJson(JSONValue item) @safe pure
     {
         ContractFunction fn;
 
@@ -296,17 +301,26 @@ struct ContractABI
         fn.inputTypes = item[`inputs`].parseInputs;
         fn.name = item[`name`].str;
         keccak256(fn.selector, cast(ubyte[]) fn.signature.dup);
-        functions ~= fn;
+        return fn;
     }
 
-    private void eventFromJson(JSONValue item) @safe pure
+    private ContractEvent eventFromJson(JSONValue item) @safe pure
     {
-        ContractEvent ev;
-        ev.inputTypes = item[`inputs`].parseInputs;
-        ev.indexedInputTypes = item[`inputs`].parseInputs!(a => a[`indexed`].boolean);
-        ev.name = item[`name`].str;
-        keccak256(ev.sigHash, cast(ubyte[]) ev.signature.dup);
-        events ~= ev;
+        ContractEvent event;
+        event.inputTypes = item[`inputs`].parseInputs;
+        event.indexedInputTypes = item[`inputs`].parseInputs!(a => a[`indexed`].boolean);
+        event.name = item[`name`].str;
+        keccak256(event.sigHash, cast(ubyte[]) event.signature.dup);
+        return event;
+    }
+
+    private ContractError errorFromJson(JSONValue item) @safe pure
+    {
+        ContractError error;
+        error.inputTypes = item[`inputs`].parseInputs;
+        error.name = item[`name`].str;
+        keccak256(error.sigHash, cast(ubyte[]) error.signature.dup);
+        return error;
     }
 
     string toString() const pure @safe nothrow @nogc
@@ -331,7 +345,6 @@ private string getSignature(string name, string[] args) @safe pure
 ///
 struct ContractFunction
 {
-
     ///
     string name;
     ///
@@ -346,6 +359,7 @@ struct ContractFunction
     bool payable;
     ///
     bool constant;
+
     mixin Signature;
 
     ///
@@ -383,6 +397,20 @@ struct ContractEvent
     string[] inputTypes;
     ///
     string[] indexedInputTypes;
+
+    mixin Signature;
+}
+
+///
+struct ContractError
+{
+    ///
+    string name;
+    ///
+    Hash sigHash;
+    ///
+    string[] inputTypes;
+
     mixin Signature;
 }
 
