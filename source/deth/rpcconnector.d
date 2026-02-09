@@ -56,6 +56,8 @@ private interface IEthRPC
     string eth_getBlockTransactionCountByHash(string blockHash) @safe;
     string eth_getBlockTransactionCountByNumber(JSONValue blockNumber) @safe;
     string eth_getCode(string address, JSONValue blockNumber) @safe;
+    JSONValue eth_getFilterChanges(string filter) @safe;
+    JSONValue eth_getFilterLogs(string filter) @safe;
     JSONValue eth_getLogs(JSONValue filterOptions) @safe;
     JSONValue eth_getProof(string address, string[] storageKeys, JSONValue blockNumber) @safe;
     string eth_getStorageAt(string address, string pos, JSONValue blockNumber) @safe;
@@ -69,12 +71,16 @@ private interface IEthRPC
     string eth_hashrate() @safe;
     string eth_maxPriorityFeePerGas() @safe;
     bool eth_mining() @safe;
+    string eth_newBlockFilter() @safe;
+    string eth_newFilter(JSONValue filter) @safe;
+    string eth_newPendingTransactionFilter() @safe;
     string eth_protocolVersion() @safe;
     string eth_sendTransaction(JSONValue tx) @safe;
     string eth_sendRawTransaction(string data) @safe;
     string eth_sign(string address, string data) @safe;
     string eth_signTransction(JSONValue tx) @safe;
     JSONValue eth_syncing() @safe;
+    bool eth_uninstallFilter(string filter) @safe;
     bool net_listening() @safe;
     int net_peerCount() @safe;
     string net_version() @safe;
