@@ -264,15 +264,15 @@ struct ContractABI
     {
         assert(abi.type == JSONType.array);
         JSONValue[] items = () @trusted { return abi.array; }();
-        foreach (i; 0 .. items.length)
+        foreach (item; items)
         {
-            const type = items[i][`type`].str;
+            const type = item[`type`].str;
             if (`function` == type)
-                functionFromJson(items[i]);
+                functionFromJson(item);
             if (`constructor` == type)
-                constructorInputs = items[i][`inputs`].parseInputs;
+                constructorInputs = item[`inputs`].parseInputs;
             if (`event` == type)
-                events = [];
+                eventFromJson(item);
         }
     }
 
@@ -306,6 +306,7 @@ struct ContractABI
         ev.indexedInputTypes = item[`inputs`].parseInputs!(a => a[`indexed`].boolean);
         ev.name = item[`name`].str;
         keccak256(ev.sigHash, cast(ubyte[]) ev.signature.dup);
+        events ~= ev;
     }
 
     string toString() const pure @safe nothrow @nogc
@@ -417,11 +418,10 @@ private string[] parseInputs(alias filter = null)(JSONValue inputs) @safe pure
             inputType = inputType.replace("tuple", input[`components`].parseTuple);
         static if (isCallable!filter)
         {
-            if (input.filter)
+            if (!input.filter)
                 continue;
         }
         inputTypes ~= inputType;
-
     }
     return inputTypes;
 }
