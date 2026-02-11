@@ -270,7 +270,7 @@ To convTo(To, _From)(const _From f) @safe pure
                 foreach (elem; f.array)
                 {
                     Log log;
-                    log.remove = elem[`removed`].boolean;
+                    log.removed = elem[`removed`].boolean;
                     log.address = elem[`address`].str[2 .. $].convTo!Address;
                     log.data = elem[`data`].str[2 .. $].hexToBytes;
                     log.topics = elem[`topics`].array
