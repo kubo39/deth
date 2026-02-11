@@ -274,7 +274,7 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
             jtx["topics"] = filter.topics.get;
         JSONValue rawResponse = eth_getLogs(jtx);
         Nullable!LogsResponse logsResponse;
-        if (rawResponse.isNull)
+        if (!rawResponse.isNull)
         {
             logsResponse = Nullable!LogsResponse(rawResponse.convTo!LogsResponse);
         }
