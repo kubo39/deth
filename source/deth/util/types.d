@@ -265,7 +265,7 @@ To convTo(To, _From)(const _From f) @safe pure
         }
         static if (is(To == LogsResponse))
         {
-            LogsResponse logs;
+            Log[] logArray;
             () @trusted {
                 foreach (elem; f.array)
                 {
@@ -296,9 +296,11 @@ To convTo(To, _From)(const _From f) @safe pure
                     {
                         log.blockTimestamp = elem[`blockTimestamp`].str[2 .. $].to!ulong(16);
                     }
-                    logs ~= log;
+                    logArray ~= log;
                 }
             }();
+            LogsResponse logs;
+            logs.logs = logArray;
             return logs;
         }
     }
@@ -519,6 +521,17 @@ struct LogsResponse
     ///
     Nullable!(Log[]) logs;
     alias logs this;
+}
+
+/// Filter ID returned by eth_newFilter, eth_newBlockFilter, etc.
+struct FilterID
+{
+    string id; // hex string e.g. "0x1"
+
+    string toString() const pure @safe nothrow
+    {
+        return id;
+    }
 }
 
 ///
