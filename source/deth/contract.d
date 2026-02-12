@@ -52,8 +52,10 @@ class Contract(ContractABI abi = ContractABI.init)
     version (unittest)
     {
         debug pragma(msg, allFunctions(abi));
+        debug pragma(msg, allEvents(abi));
     }
     mixin(allFunctions(abi));
+    mixin(allEvents(abi));
 
     /// Sends transaction for deploy contract
     static auto deployTx(ARGS...)(RPCConnector conn, ARGS argv)
@@ -195,6 +197,64 @@ private string allFunctions(ContractABI abi)
     return code;
 }
 
+private string allEvents(ContractABI abi)
+{
+    string code = "";
+    if (abi == ContractABI.init)
+        return code;
+
+    foreach (ev; abi.events)
+    {
+        // Generate event struct
+        code ~= "struct " ~ ev.name ~ "Event {";
+        foreach (i, t; ev.indexedInputTypes)
+            code ~= t.toDType ~ " indexed" ~ i.to!string ~ ";";
+        foreach (i, t; ev.dataInputTypes)
+            code ~= t.toDType ~ " data" ~ i.to!string ~ ";";
+        code ~= "}";
+
+        // Generate decode method
+        code ~= "static " ~ ev.name ~ "Event decode" ~ ev.name ~ "Event(Log log) @trusted {";
+        code ~= "import deth.util.abi : decode;";
+        code ~= ev.name ~ "Event result;";
+
+        // Decode indexed parameters from topics[1..]
+        foreach (i, t; ev.indexedInputTypes)
+        {
+            auto dType = t.toDType;
+            auto topicIdx = (i + 1).to!string;
+            code ~= "result.indexed" ~ i.to!string ~ " = "
+                ~ "(cast(ubyte[32]) log.topics[" ~ topicIdx ~ "]).decode!(" ~ dType ~ ");";
+        }
+
+        // Decode non-indexed parameters from data
+        if (ev.dataInputTypes.length == 1)
+        {
+            auto dType = ev.dataInputTypes[0].toDType;
+            code ~= "result.data0 = (cast(ubyte[]) log.data).decode!(" ~ dType ~ ");";
+        }
+        else if (ev.dataInputTypes.length > 1)
+        {
+            string tupleTypes;
+            foreach (i, t; ev.dataInputTypes)
+            {
+                if (i > 0) tupleTypes ~= ",";
+                tupleTypes ~= t.toDType;
+            }
+            code ~= "auto decoded = (cast(ubyte[]) log.data).decode!(Tuple!(" ~ tupleTypes ~ "));";
+            foreach (i, _; ev.dataInputTypes)
+            {
+                auto idx = i.to!string;
+                code ~= "result.data" ~ idx ~ " = decoded[" ~ idx ~ "];";
+            }
+        }
+
+        code ~= "return result; }";
+    }
+
+    return code;
+}
+
 /// structure presenting contract's abi
 /// contains abi for contructor, functions, events
 struct ContractABI
@@ -308,7 +368,19 @@ struct ContractABI
     {
         ContractEvent event;
         event.inputTypes = item[`inputs`].parseInputs;
-        event.indexedInputTypes = item[`inputs`].parseInputs!(a => a[`indexed`].boolean);
+
+        JSONValue[] inputs = () @trusted { return item[`inputs`].array; }();
+        foreach (input; inputs)
+        {
+            auto inputType = input[`type`].str;
+            if (inputType.canFind("tuple"))
+                inputType = inputType.replace("tuple", input[`components`].parseTuple);
+            if (input[`indexed`].boolean)
+                event.indexedInputTypes ~= inputType;
+            else
+                event.dataInputTypes ~= inputType;
+        }
+
         event.name = item[`name`].str;
         keccak256(event.sigHash, cast(ubyte[]) event.signature.dup);
         return event;
@@ -397,6 +469,8 @@ struct ContractEvent
     string[] inputTypes;
     ///
     string[] indexedInputTypes;
+    ///
+    string[] dataInputTypes;
 
     mixin Signature;
 }
@@ -502,4 +576,71 @@ enum Mutability
     VIEW = "view",
     PAYABLE = "payable",
     NONPAYABLE = "nonpayable",
+}
+
+@("event: ContractEvent parses indexed and data types")
+unittest
+{
+    // ERC-20 Transfer event ABI
+    enum abi = ContractABI(`[{
+        "type": "event",
+        "name": "Transfer",
+        "inputs": [
+            {"name": "from", "type": "address", "indexed": true},
+            {"name": "to", "type": "address", "indexed": true},
+            {"name": "value", "type": "uint256", "indexed": false}
+        ]
+    }]`);
+
+    assert(abi.events.length == 1);
+    assert(abi.events[0].name == "Transfer");
+    assert(abi.events[0].inputTypes == ["address", "address", "uint256"]);
+    assert(abi.events[0].indexedInputTypes == ["address", "address"]);
+    assert(abi.events[0].dataInputTypes == ["uint256"]);
+
+    // Verify sigHash = keccak256("Transfer(address,address,uint256)")
+    assert(abi.events[0].sigHash[0] == 0xdd);
+    assert(abi.events[0].sigHash[1] == 0xf2);
+    assert(abi.events[0].sigHash[2] == 0x52);
+    assert(abi.events[0].sigHash[3] == 0xad);
+}
+
+@("event: decodeEvent for Transfer event")
+unittest
+{
+    enum abi = ContractABI(`[{
+        "type": "event",
+        "name": "Transfer",
+        "inputs": [
+            {"name": "from", "type": "address", "indexed": true},
+            {"name": "to", "type": "address", "indexed": true},
+            {"name": "value", "type": "uint256", "indexed": false}
+        ]
+    }]`);
+
+    // Construct a mock log
+    Log log;
+
+    // topic[0] = sigHash (Transfer)
+    log.topics ~= abi.events[0].sigHash;
+
+    // topic[1] = from address (padded to 32 bytes)
+    Hash fromTopic;
+    fromTopic[12 .. 32] = cast(ubyte[20]) "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef".convTo!Address;
+    log.topics ~= fromTopic;
+
+    // topic[2] = to address (padded to 32 bytes)
+    Hash toTopic;
+    toTopic[12 .. 32] = cast(ubyte[20]) "0xcafebabecafebabecafebabecafebabecafebabe".convTo!Address;
+    log.topics ~= toTopic;
+
+    // data = uint256 value (100)
+    ubyte[32] data;
+    data[31] = 100;
+    log.data = data.dup;
+
+    auto transfer = Contract!abi.decodeTransferEvent(log);
+    assert(transfer.indexed0 == "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef".convTo!Address);
+    assert(transfer.indexed1 == "0xcafebabecafebabecafebabecafebabecafebabe".convTo!Address);
+    assert(transfer.data0 == BigInt(100));
 }
