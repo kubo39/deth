@@ -208,9 +208,9 @@ private string allEvents(ContractABI abi)
         // Generate event struct
         code ~= "struct " ~ ev.name ~ "Event {";
         foreach (i, t; ev.indexedInputTypes)
-            code ~= t.toDType ~ " indexed" ~ i.to!string ~ ";";
+            code ~= t.toDType ~ " " ~ ev.indexedInputNames[i] ~ ";";
         foreach (i, t; ev.dataInputTypes)
-            code ~= t.toDType ~ " data" ~ i.to!string ~ ";";
+            code ~= t.toDType ~ " " ~ ev.dataInputNames[i] ~ ";";
         code ~= "}";
 
         // Generate decode method
@@ -223,7 +223,7 @@ private string allEvents(ContractABI abi)
         {
             auto dType = t.toDType;
             auto topicIdx = (i + 1).to!string;
-            code ~= "result.indexed" ~ i.to!string ~ " = "
+            code ~= "result." ~ ev.indexedInputNames[i] ~ " = "
                 ~ "(cast(ubyte[32]) log.topics[" ~ topicIdx ~ "]).decode!(" ~ dType ~ ");";
         }
 
@@ -231,7 +231,7 @@ private string allEvents(ContractABI abi)
         if (ev.dataInputTypes.length == 1)
         {
             auto dType = ev.dataInputTypes[0].toDType;
-            code ~= "result.data0 = (cast(ubyte[]) log.data).decode!(" ~ dType ~ ");";
+            code ~= "result." ~ ev.dataInputNames[0] ~ " = (cast(ubyte[]) log.data).decode!(" ~ dType ~ ");";
         }
         else if (ev.dataInputTypes.length > 1)
         {
@@ -245,7 +245,7 @@ private string allEvents(ContractABI abi)
             foreach (i, _; ev.dataInputTypes)
             {
                 auto idx = i.to!string;
-                code ~= "result.data" ~ idx ~ " = decoded[" ~ idx ~ "];";
+                code ~= "result." ~ ev.dataInputNames[i] ~ " = decoded[" ~ idx ~ "];";
             }
         }
 
@@ -376,9 +376,15 @@ struct ContractABI
             if (inputType.canFind("tuple"))
                 inputType = inputType.replace("tuple", input[`components`].parseTuple);
             if (input[`indexed`].boolean)
+            {
                 event.indexedInputTypes ~= inputType;
+                event.indexedInputNames ~= input[`name`].str;
+            }
             else
+            {
                 event.dataInputTypes ~= inputType;
+                event.dataInputNames ~= input[`name`].str;
+            }
         }
 
         event.name = item[`name`].str;
@@ -470,7 +476,11 @@ struct ContractEvent
     ///
     string[] indexedInputTypes;
     ///
+    string[] indexedInputNames;
+    ///
     string[] dataInputTypes;
+    ///
+    string[] dataInputNames;
 
     mixin Signature;
 }
@@ -596,7 +606,9 @@ unittest
     assert(abi.events[0].name == "Transfer");
     assert(abi.events[0].inputTypes == ["address", "address", "uint256"]);
     assert(abi.events[0].indexedInputTypes == ["address", "address"]);
+    assert(abi.events[0].indexedInputNames == ["from", "to"]);
     assert(abi.events[0].dataInputTypes == ["uint256"]);
+    assert(abi.events[0].dataInputNames == ["value"]);
 
     // Verify sigHash = keccak256("Transfer(address,address,uint256)")
     assert(abi.events[0].sigHash[0] == 0xdd);
@@ -640,7 +652,7 @@ unittest
     log.data = data.dup;
 
     auto transfer = Contract!abi.decodeTransferEvent(log);
-    assert(transfer.indexed0 == "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef".convTo!Address);
-    assert(transfer.indexed1 == "0xcafebabecafebabecafebabecafebabecafebabe".convTo!Address);
-    assert(transfer.data0 == BigInt(100));
+    assert(transfer.from == "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef".convTo!Address);
+    assert(transfer.to == "0xcafebabecafebabecafebabecafebabecafebabe".convTo!Address);
+    assert(transfer.value == BigInt(100));
 }

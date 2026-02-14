@@ -64,6 +64,6 @@ void main()
     {
         auto event = CounterContract.decodeNumberChangedEvent(log);
         writefln("  NumberChanged: by=%s, newNumber=%s",
-            event.indexed0.convTo!string.ox, event.data0);
+            event.by.convTo!string.ox, event.newNumber);
     }
 }
