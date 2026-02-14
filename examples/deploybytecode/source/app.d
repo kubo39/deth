@@ -37,14 +37,33 @@ void main()
 
     auto contract = new CounterContract(conn, contractAddress.get);
 
+    // Set up a log watcher for NumberChanged events
+    LogFilter!BlockNumber filter;
+    filter.from = BlockNumber.LATEST;
+    filter.address = contractAddress.get;
+    auto watcher = conn.watchLogs(filter);
+    scope(exit) watcher.stop();
+
+    // setNumber(42) - emits NumberChanged
     const txHash2 = contract.setNumber(42.BigInt).send();
-    conn.getTransactionReceipt(txHash2);
+    conn.waitForTransactionReceipt(txHash2);
     writeln("Set number to 42: ", txHash2.convTo!string.ox);
 
+    // increment() - emits NumberChanged
     const txHash3 = contract.increment().send();
-    conn.getTransactionReceipt(txHash3);
+    conn.waitForTransactionReceipt(txHash3);
     writeln("Incremented number: ", txHash3.convTo!string.ox);
 
     const number = contract.number();
     writeln("Retrieved number: ", number);
+
+    // Poll for NumberChanged events and decode them
+    auto logs = watcher.getChanges();
+    writeln("Received ", logs.length, " event(s):");
+    foreach (log; logs)
+    {
+        auto event = CounterContract.decodeNumberChangedEvent(log);
+        writefln("  NumberChanged: by=%s, newNumber=%s",
+            event.indexed0.convTo!string.ox, event.data0);
+    }
 }
