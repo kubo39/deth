@@ -12,6 +12,7 @@ import std.json : JSONValue;
 import std.sumtype;
 import std.typecons : Nullable;
 
+import deth.filterwatcher;
 import deth.signer;
 import deth.util;
 import deth.util.transaction;
@@ -345,6 +346,122 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     {
         return eth_blobBaseFee().BigInt;
     }
+
+    /// Wrapper for eth_newFilter.
+    ///
+    /// https://ethereum.github.io/execution-apis/api/methods/eth_newFilter/
+    FilterID newFilter(BlockParameter)(LogFilter!BlockParameter filter) @trusted
+    {
+        JSONValue jtx;
+        if (!filter.from.isNull)
+        {
+            const block = filter.from.get;
+            mixin BlockNumberToJSON!block;
+            jtx["fromBlock"] = _block;
+        }
+        if (!filter.to.isNull)
+        {
+            const block = filter.to.get;
+            mixin BlockNumberToJSON!block;
+            jtx["toBlock"] = _block;
+        }
+        if (!filter.address.isNull)
+        {
+            jtx["address"] = filter.address.get.convTo!string.ox;
+        }
+        if (!filter.topics.isNull)
+            jtx["topics"] = filter.topics.get;
+        return FilterID(eth_newFilter(jtx));
+    }
+
+    /// Wrapper for eth_getFilterChanges.
+    ///
+    /// https://ethereum.github.io/execution-apis/api/methods/eth_getFilterChanges/
+    Log[] getFilterChanges(FilterID filterID) @trusted
+    {
+        JSONValue rawResponse = eth_getFilterChanges(filterID.id);
+        if (rawResponse.isNull)
+            return [];
+        return rawResponse.convTo!LogsResponse.get;
+    }
+
+    /// Wrapper for eth_getFilterLogs.
+    ///
+    /// https://ethereum.github.io/execution-apis/api/methods/eth_getFilterLogs/
+    Log[] getFilterLogs(FilterID filterID) @trusted
+    {
+        JSONValue rawResponse = eth_getFilterLogs(filterID.id);
+        if (rawResponse.isNull)
+            return [];
+        return rawResponse.convTo!LogsResponse.get;
+    }
+
+    /// Wrapper for eth_getFilterChanges (block/pending tx filter variant).
+    /// Returns Hash[] instead of Log[] for block and pending transaction filters.
+    ///
+    /// https://ethereum.github.io/execution-apis/api/methods/eth_getFilterChanges/
+    Hash[] getFilterChangesHashes(FilterID filterID) @trusted
+    {
+        JSONValue rawResponse = eth_getFilterChanges(filterID.id);
+        if (rawResponse.isNull)
+            return [];
+        return () @trusted {
+            return rawResponse.array
+                .map!(h => h.str.convTo!Hash)
+                .array;
+        }();
+    }
+
+    /// Wrapper for eth_uninstallFilter.
+    ///
+    /// https://ethereum.github.io/execution-apis/api/methods/eth_uninstallFilter/
+    bool uninstallFilter(FilterID filterID) @safe
+    {
+        return eth_uninstallFilter(filterID.id);
+    }
+
+    /// Wrapper for eth_newBlockFilter.
+    ///
+    /// https://ethereum.github.io/execution-apis/api/methods/eth_newBlockFilter/
+    FilterID newBlockFilter() @safe
+    {
+        return FilterID(eth_newBlockFilter());
+    }
+
+    /// Wrapper for eth_newPendingTransactionFilter.
+    ///
+    /// https://ethereum.github.io/execution-apis/api/methods/eth_newPendingTransactionFilter/
+    FilterID newPendingTransactionFilter() @safe
+    {
+        return FilterID(eth_newPendingTransactionFilter());
+    }
+
+    /// Creates a LogFilterWatcher for polling log changes.
+    /// Internally calls eth_newFilter and returns a watcher
+    /// whose getChanges() returns Log[].
+    LogFilterWatcher watchLogs(BlockParameter)(LogFilter!BlockParameter filter) @trusted
+    {
+        auto filterID = newFilter(filter);
+        return LogFilterWatcher(this, filterID);
+    }
+
+    /// Creates a BlockFilterWatcher for polling new blocks.
+    /// Internally calls eth_newBlockFilter and returns a watcher
+    /// whose getChanges() returns Hash[].
+    BlockFilterWatcher watchBlocks() @safe
+    {
+        auto filterID = newBlockFilter();
+        return BlockFilterWatcher(this, filterID);
+    }
+
+    /// Creates a PendingTxFilterWatcher for polling pending transactions.
+    /// Internally calls eth_newPendingTransactionFilter and returns a watcher
+    /// whose getChanges() returns Hash[].
+    PendingTxFilterWatcher watchPendingTransactions() @safe
+    {
+        auto filterID = newPendingTransactionFilter();
+        return PendingTxFilterWatcher(this, filterID);
+    }
 }
 
 private:
@@ -673,4 +790,212 @@ unittest
     mock.enqueueError(-32_000, "execution reverted");
 
     assertThrown!RpcException(conn.chainId());
+}
+
+@("mock: newFilter")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(`"0x1"`);
+
+    LogFilter!BlockNumber filter;
+    filter.from = BlockNumber.LATEST;
+    auto filterID = conn.newFilter(filter);
+
+    assert(filterID.id == "0x1");
+    mock.assertMethodCalled("eth_newFilter");
+}
+
+@("mock: getFilterChanges returns logs")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(`[{
+        "removed": false,
+        "logIndex": "0x0",
+        "transactionIndex": "0x0",
+        "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "blockTimestamp": "0x0",
+        "address": "0x0000000000000000000000000000000000000001",
+        "data": "0x0000000000000000000000000000000000000000000000000000000000000064",
+        "topics": [
+            "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+        ]
+    }]`);
+
+    auto logs = conn.getFilterChanges(FilterID("0x1"));
+    assert(logs.length == 1);
+    assert(!logs[0].removed);
+    mock.assertMethodCalled("eth_getFilterChanges");
+}
+
+@("mock: getFilterChanges returns empty")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(`[]`);
+
+    auto logs = conn.getFilterChanges(FilterID("0x1"));
+    assert(logs.length == 0);
+    mock.assertMethodCalled("eth_getFilterChanges");
+}
+
+@("mock: uninstallFilter")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(`true`);
+
+    assert(conn.uninstallFilter(FilterID("0x1")));
+    mock.assertMethodCalled("eth_uninstallFilter");
+}
+
+@("mock: newBlockFilter")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(`"0x2"`);
+
+    auto filterID = conn.newBlockFilter();
+    assert(filterID.id == "0x2");
+    mock.assertMethodCalled("eth_newBlockFilter");
+}
+
+@("mock: newPendingTransactionFilter")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(`"0x3"`);
+
+    auto filterID = conn.newPendingTransactionFilter();
+    assert(filterID.id == "0x3");
+    mock.assertMethodCalled("eth_newPendingTransactionFilter");
+}
+
+@("mock: getFilterChangesHashes returns hashes")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(`[
+        "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "0x0000000000000000000000000000000000000000000000000000000000000002"
+    ]`);
+
+    auto hashes = conn.getFilterChangesHashes(FilterID("0x1"));
+    assert(hashes.length == 2);
+    assert(hashes[0][31] == 1);
+    assert(hashes[1][31] == 2);
+    mock.assertMethodCalled("eth_getFilterChanges");
+}
+
+@("mock: getFilterChangesHashes returns empty")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    mock.enqueueResponse(`[]`);
+
+    auto hashes = conn.getFilterChangesHashes(FilterID("0x1"));
+    assert(hashes.length == 0);
+}
+
+@("mock: watchLogs creates watcher and getChanges returns logs")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    // newFilter response
+    mock.enqueueResponse(`"0x1"`);
+    // getFilterChanges response
+    mock.enqueueResponse(`[{
+        "removed": false,
+        "logIndex": "0x0",
+        "transactionIndex": "0x0",
+        "transactionHash": "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "blockHash": "0x0000000000000000000000000000000000000000000000000000000000000002",
+        "blockTimestamp": "0x0",
+        "address": "0x0000000000000000000000000000000000000001",
+        "data": "0x",
+        "topics": []
+    }]`);
+    // uninstallFilter response
+    mock.enqueueResponse(`true`);
+
+    LogFilter!BlockNumber filter;
+    filter.from = BlockNumber.LATEST;
+    auto watcher = conn.watchLogs(filter);
+
+    assert(watcher.active);
+    assert(watcher.filter.id == "0x1");
+
+    auto logs = watcher.getChanges();
+    assert(logs.length == 1);
+
+    watcher.stop();
+    assert(!watcher.active);
+}
+
+@("mock: watchBlocks creates watcher and getChanges returns hashes")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    // newBlockFilter response
+    mock.enqueueResponse(`"0x2"`);
+    // getFilterChanges response
+    mock.enqueueResponse(`[
+        "0x0000000000000000000000000000000000000000000000000000000000000abc"
+    ]`);
+    // uninstallFilter response
+    mock.enqueueResponse(`true`);
+
+    auto watcher = conn.watchBlocks();
+
+    assert(watcher.active);
+    auto hashes = watcher.getChanges();
+    assert(hashes.length == 1);
+
+    watcher.stop();
+    assert(!watcher.active);
+}
+
+@("mock: watchPendingTransactions creates watcher and getChanges returns hashes")
+unittest
+{
+    auto mock = new MockRpcClient();
+    auto conn = new RPCConnector(mock);
+
+    // newPendingTransactionFilter response
+    mock.enqueueResponse(`"0x3"`);
+    // getFilterChanges response
+    mock.enqueueResponse(`[]`);
+    // uninstallFilter response
+    mock.enqueueResponse(`true`);
+
+    auto watcher = conn.watchPendingTransactions();
+
+    assert(watcher.active);
+    auto hashes = watcher.getChanges();
+    assert(hashes.length == 0);
+
+    watcher.stop();
+    assert(!watcher.active);
 }
