@@ -259,13 +259,13 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
         {
             const block = filter.from.get;
             mixin BlockNumberToJSON!block;
-            jtx["from"] = _block;
+            jtx["fromBlock"] = _block;
         }
         if (!filter.to.isNull)
         {
             const block = filter.to.get;
             mixin BlockNumberToJSON!block;
-            jtx["to"] = _block;
+            jtx["toBlock"] = _block;
         }
         if (!filter.address.isNull)
         {
