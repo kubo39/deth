@@ -317,8 +317,9 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
     /// Params:
     ///   txHash = hash of the transaction
     /// Returns: TransactionReceipt of mined transaction or throws an exception
-    TransactionReceipt waitForTransactionReceipt(Hash txHash) @safe
+    TransactionReceipt waitForTransactionReceipt(Hash txHash, ulong confirmations = 1) @safe
     {
+        enforce(confirmations >= 1, "confirmations must be at least 1");
         ulong count;
         while (getTransaction(txHash).blockHash.isNull)
         {
@@ -326,7 +327,23 @@ class RPCConnector : JsonRpcAutoAttributeClient!IEthRPC
             () @trusted { Thread.sleep(200.dur!"msecs"); }();
             count++;
         }
-        return getTransactionReceipt(txHash).get;
+        auto receipt = getTransactionReceipt(txHash).get;
+
+        if (confirmations > 1)
+        {
+            ulong confirmCount;
+            while (true)
+            {
+                enforce(confirmCount < 500, "Timeout for waiting confirmations");
+                auto currentBlock = eth_blockNumber()[2 .. $].to!ulong(16);
+                if (currentBlock >= receipt.blockNumber + confirmations - 1)
+                    break;
+                () @trusted { Thread.sleep(200.dur!"msecs"); }();
+                confirmCount++;
+            }
+        }
+
+        return receipt;
     }
 
     ///
