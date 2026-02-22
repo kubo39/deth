@@ -1,0 +1,6 @@
+name "signmessage"
+description "An example for EIP-191 message signing and verification"
+authors "Hiroki Noda"
+copyright "Copyright © 2026, Hiroki Noda"
+dependency "deth" version="*" path="../../"
+license "MIT"

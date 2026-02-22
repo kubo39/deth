@@ -66,6 +66,16 @@ private:
     secp256k1 keypair;
 }
 
+/// Recover the signer address from a message and its EIP-191 signature.
+/// This can be used to verify that a signature was produced by the holder of the
+/// private key corresponding to an Ethereum address.
+Address recoverMessageSigner(string message, Signature sig) @trusted
+{
+    import secp256k1 : ecRecover;
+
+    return ecRecover(sig, eip191PrefixedMessage(cast(bytes) message));
+}
+
 /// Hash a message according to EIP-191.
 Hash eip191HashMessage(const bytes message) @safe
 {
