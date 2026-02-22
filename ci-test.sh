@@ -28,3 +28,4 @@ dub test -q --d-version=IntegrationTest -- --threads=1
 dub run deth:devtest -q
 dub run deth:transfer -q
 dub run deth:deploybytecode -q
+dub run deth:signmessage -q
